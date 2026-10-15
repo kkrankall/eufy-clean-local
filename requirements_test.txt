@@ -1,0 +1,6 @@
+# Home Assistant 2026.10.1 and its test harness, plus what the integration and its tests import.
+pytest-homeassistant-custom-component==0.13.372
+protobuf==7.36.0
+tinytuya>=1.17.0
+PyTurboJPEG==1.8.3
+lz4>=4.3.2

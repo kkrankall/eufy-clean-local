@@ -1,0 +1,129 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class SceneRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+import "proto/cloud/clean_param.proto";
+import "proto/cloud/common.proto";
+import "proto/cloud/timing.proto";
+
+message SceneTask {
+    enum Type {
+        CURRENT_ROOM = 0;
+        ALL_ROOMS = 1;
+    }
+    enum CleanMode {
+        GENERAL = 0;
+        SMART = 1;
+    }
+    message General {
+        CleanType clean_type = 1;
+        uint32 clean_times = 2;
+        Fan fan = 3;
+        MopMode mop_mode = 4;
+        CleanExtent clean_extent = 5;
+    }
+    message CurrentRoom {
+        message Unit {
+            message RoomClean {
+                uint32 room_id = 1;
+                RoomScene room_scene = 2;
+            }
+            message ZoneClean {
+                Quadrangle quadrangle = 1;
+            }
+            message CarpetClean {  // iOS-only: not in public Android protos
+                uint32 carpet_id = 1;
+            }
+            General general = 1;
+            oneof param {
+                RoomClean room_clean = 2;
+                ZoneClean zone_clean = 3;
+                CarpetClean carpet_clean = 4;  // iOS-only
+            }
+        }
+        CleanMode mode = 1;
+        repeated Unit units = 2;
+    }
+    message AllRooms {
+        CleanMode mode = 1;
+        General general = 2;
+    }
+    uint32 index = 1;
+    Type type = 2;
+    oneof task {
+        CurrentRoom current_room = 3;
+        AllRooms all_rooms = 4;
+    }
+    uint32 group_id = 10;  // iOS-only
+}
+
+message SceneInfo {
+    enum InvalidReason {
+        NORMAL = 0;
+        MAP_NOT_EXIST = 1;
+        MAP_NOT_AVAILABLE = 2;
+        MAP_NOT_MATCH = 3;
+        OTHER = 4;
+        DEFAULT = 5;
+    }
+    enum Type {
+        SCENE_NORMAL = 0;
+        WHOLE_HOUSE_DAILY_CLEANING = 1;
+        WHOLE_HOUSE_DEEP_CLEANING = 2;
+        AFTER_DINNER_CLEANING = 3;
+        PET_AREA_CLEANING = 4;
+        INTENSIVE_CLEAN = 5;  // iOS-only
+    }
+    message Id {
+        uint32 value = 1;
+    }
+    Id id = 1;
+    bool valid = 2;
+    InvalidReason invalid_reason = 3;
+    string name = 4;
+    uint32 mapid = 5;
+    uint32 estimate_time = 6;
+    uint32 index = 7;
+    Type type = 8;
+}
+
+message SceneRequest {
+    enum Method {
+        DEFAULT = 0;
+        ADD_SCENE = 1;
+        DELETE_SCENE = 2;
+        MODIFY_SCENE = 3;
+    }
+    message Common {
+        uint32 scene_id = 1;
+    }
+    message Scene {
+        SceneInfo info = 1;
+        repeated SceneTask tasks = 2;
+        TimerInfo timer = 4;  // iOS-only
+        // public-only (absent in iOS): proto.cloud.TimerInfo.Desc desc = 3;
+    }
+    Method method = 1;
+    uint32 seq = 2;
+    oneof param {
+        Common common = 3;
+        Scene scene = 4;
+    }
+}
+
+message SceneResponse {
+    message Result {
+        enum Value {
+            SUCCESS = 0;
+            FAILED = 1;
+        }
+        Value value = 1;
+        uint32 err_code = 2;
+    }
+    SceneRequest.Method method = 1;
+    uint32 seq = 2;
+    Result result = 3;
+    repeated SceneInfo infos = 4;
+}

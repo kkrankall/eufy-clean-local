@@ -1,0 +1,188 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class ControlRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+import "proto/cloud/clean_param.proto";
+import "proto/cloud/common.proto";
+
+message RemoteCtrl {
+    enum Direction {
+        BRAKE = 0;
+        FORWARD = 1;
+        BACK = 2;
+        LEFT = 3;
+        RIGHT = 4;
+    }
+    Direction direction = 1;
+}
+
+message AutoClean {
+    uint32 clean_times = 1;
+    bool force_mapping = 2;
+}
+
+message SelectRoomsClean {
+    enum Mode {
+        GENERAL = 0;
+        CUSTOMIZE = 1;
+    }
+    message Room {
+        uint32 id = 1;
+        uint32 order = 2;
+    }
+    repeated Room rooms = 1;
+    uint32 clean_times = 2;
+    uint32 map_id = 3;
+    uint32 releases = 4;
+    Mode mode = 5;
+}
+
+message SelectZonesClean {
+    enum Type {
+        NORMAL = 0;
+        POOP_CLEANING = 1;
+    }
+    message Zone {
+        Quadrangle quadrangle = 1;
+        uint32 clean_times = 2;
+    }
+    repeated Zone zones = 1;
+    uint32 map_id = 2;
+    uint32 releases = 3;
+    Type type = 4;
+}
+
+message SceneClean {
+    uint32 scene_id = 1;
+}
+
+message CarpetClean {  // iOS-only: not in public Android protos
+    message ParamWrap {  // iOS-only: not in public Android protos
+        uint32 carpet_id = 1;
+        CleanParam clean_param = 2;
+    }
+    uint32 map_id = 1;
+    uint32 releases = 2;
+    repeated ParamWrap params = 3;
+}
+
+message SpotClean {
+    uint32 clean_times = 1;
+}
+
+message Goto {
+    enum Type {
+        GOTO_DESTINATION = 0;
+        GOTO_SPOT = 1;
+        GOTO_AUTO = 2;
+    }
+    Point destination = 1;
+    Type type = 2;
+    uint32 clean_times = 3;
+    uint32 map_id = 4;
+    uint32 releases = 5;
+}
+
+message ScheduleAutoClean {
+    Fan fan = 1;
+    MopMode mop_mode = 2;
+    CleanType clean_type = 3;
+    CleanExtent clean_extent = 4;
+}
+
+message ScheduleRoomsClean {
+    message Room {
+        uint32 id = 1;
+        uint32 order = 2;
+    }
+    Fan fan = 1;
+    MopMode mop_mode = 2;
+    CleanType clean_type = 3;
+    CleanExtent clean_extent = 4;
+    repeated Room rooms = 5;
+    uint32 map_id = 6;
+    uint32 releases = 7;
+}
+
+message GlobalCruise {
+    uint32 map_id = 1;
+    uint32 releases = 2;
+}
+
+message PointCruise {
+    Point points = 1;
+    uint32 map_id = 2;
+    uint32 releases = 3;
+}
+
+message ZonesCruise {
+    repeated Point points = 1;
+    uint32 map_id = 2;
+    uint32 releases = 3;
+}
+
+message ScheduleCruise {
+    uint32 map_id = 1;
+    uint32 releases = 2;
+}
+
+message ModeCtrlRequest {
+    enum Method {
+        START_AUTO_CLEAN = 0;
+        START_SELECT_ROOMS_CLEAN = 1;
+        START_SELECT_ZONES_CLEAN = 2;
+        START_SPOT_CLEAN = 3;
+        START_GOTO_CLEAN = 4;
+        START_RC_CLEAN = 5;
+        START_GOHOME = 6;
+        START_SCHEDULE_AUTO_CLEAN = 7;
+        START_SCHEDULE_ROOMS_CLEAN = 8;
+        START_FAST_MAPPING = 9;
+        START_GOWASH = 10;
+        STOP_TASK = 12;
+        PAUSE_TASK = 13;
+        RESUME_TASK = 14;
+        STOP_GOHOME = 15;
+        STOP_RC_CLEAN = 16;
+        STOP_GOWASH = 17;
+        STOP_SMART_FOLLOW = 18;
+        START_GLOBAL_CRUISE = 20;
+        START_POINT_CRUISE = 21;
+        START_ZONES_CRUISE = 22;
+        START_SCHEDULE_CRUISE = 23;
+        START_SCENE_CLEAN = 24;
+        START_MAPPING_THEN_CLEAN = 25;
+        START_CARPET_CLEAN = 26;  // iOS-only
+        START_SELF_CHECK = 27;  // iOS-only
+    }
+    Method method = 1;
+    uint32 seq = 2;
+    oneof param {
+        AutoClean auto_clean = 3;
+        SelectRoomsClean select_rooms_clean = 4;
+        SelectZonesClean select_zones_clean = 5;
+        SpotClean spot_clean = 6;
+        Goto go_to = 7;
+        ScheduleAutoClean sche_auto_clean = 8;
+        ScheduleRoomsClean sche_rooms_clean = 9;
+        GlobalCruise global_cruise = 10;
+        PointCruise point_cruise = 11;
+        ZonesCruise zones_cruise = 12;
+        ScheduleCruise sche_cruise = 13;
+        SceneClean scene_clean = 14;
+        CarpetClean carpet_clean = 15;  // iOS-only
+    }
+}
+
+message ModeCtrlResponse {
+    enum Result {
+        SUCCESS = 0;
+        FAILED = 1;
+    }
+    ModeCtrlRequest.Method method = 1;
+    uint32 seq = 2;
+    Result result = 3;
+    repeated uint32 err_code_list = 4;  // iOS-only
+}

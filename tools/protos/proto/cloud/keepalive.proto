@@ -1,0 +1,10 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class KeepaliveRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+message KeepAliveRequest {
+    uint64 timestamp = 1;
+    bool force_sync = 2;
+}

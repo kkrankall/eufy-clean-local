@@ -1,0 +1,133 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class AnalysisRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+message AnalysisRequest {
+}
+
+message AnalysisInternalStatus {
+    string robotapp_state = 1;
+    string motion_state = 2;
+}
+
+message AnalysisStatistics {
+    message CleanRecord {
+        enum FailCode {
+            UNKNOW = 0;
+            ROBOT_FAULT = 1;
+            ROBOT_ALERT = 2;
+            MANUAL_BREAK = 3;
+        }
+        enum Mode {
+            AUTO_CLEAN = 0;
+            SELECT_ROOMS_CLEAN = 1;
+            SELECT_ZONES_CLEAN = 2;
+            SPOT_CLEAN = 3;
+            FAST_MAPPING = 4;
+        }
+        enum Type {
+            SWEEP_ONLY = 0;
+            MOP_ONLY = 1;
+            SWEEP_AND_MOP = 2;
+        }
+        uint32 clean_id = 1;
+        bool result = 2;
+        FailCode fail_code = 3;
+        Mode mode = 4;
+        Type type = 5;
+        uint64 start_time = 6;
+        uint64 end_time = 7;
+        uint32 clean_time = 8;
+        uint32 clean_area = 9;
+        uint32 slam_area = 10;
+        uint32 map_id = 11;
+        uint32 room_count = 12;
+        // public-only (absent in iOS): proto.cloud.AnalysisStatistics.CleanRecord.RollBrush roll_brush = 13;
+    }
+    message GoHomeRecord {
+        enum FailCode {
+            UNKNOW = 0;
+            MANUAL_BREAK = 1;
+            NAVIGATE_FAIL = 2;
+            ENTER_HOME_FAIL = 3;
+        }
+        uint32 clean_id = 1;
+        bool result = 2;
+        FailCode fail_code = 3;
+        uint64 power_level = 4;
+        uint64 start_time = 5;
+        uint64 end_time = 6;
+    }
+    message RelocateRecord {
+        uint32 clean_id = 1;
+        bool result = 2;
+        uint32 map_count = 3;
+        uint64 start_time = 4;
+        uint64 end_time = 5;
+    }
+    message CollectRecord {
+        uint32 clean_id = 1;
+        bool result = 2;
+        uint64 start_time = 3;
+    }
+    message ControlEvent {
+        enum Type {
+            AUTO_CLEAN = 0;
+            SPOT_CLEAN = 1;
+            GOHOME = 2;
+            CLEAN_PAUSE = 3;
+            CLEAN_RESUME = 4;
+        }
+        enum Source {
+            KEY = 0;
+            APP = 1;
+            TIMER = 2;
+        }
+        uint32 clean_id = 1;
+        Type type = 2;
+        Source source = 3;
+        uint64 timestamp = 4;
+    }
+    message DistributeEvent {
+        enum Mode {
+            AP = 0;
+            BLE = 1;
+        }
+        enum Result {
+            E_OK = 0;
+            E_SRV_ERR = 1;
+            E_AP_NOT_FOUND = 2;
+            E_PASSWD_ERR = 3;
+            E_DHCP_ERR = 4;
+            E_GW_ERR = 5;
+            E_DNS_ERR = 6;
+            E_NET_ERR = 7;
+        }
+        message TimeStamp {
+            uint64 value = 1;
+        }
+        TimeStamp timestamp = 1;
+        Mode mode = 2;
+        Result result = 3;
+        string software_version = 4;
+        string mac = 5;
+        string uuid = 6;
+        string sn = 7;
+        string country_code = 8;
+        string token = 9;
+    }
+    CleanRecord clean = 1;
+    GoHomeRecord gohome = 2;
+    RelocateRecord relocate = 3;
+    CollectRecord collect = 4;
+    ControlEvent ctrl_event = 5;
+    DistributeEvent distribute_event = 6;
+    // public-only (absent in iOS): proto.cloud.AnalysisStatistics.BatteryInfo battery_info = 7;
+}
+
+message AnalysisResponse {
+    AnalysisInternalStatus internal_status = 1;
+    AnalysisStatistics statistics = 2;
+}

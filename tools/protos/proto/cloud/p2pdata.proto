@@ -1,0 +1,90 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class P2PP2PdataRoot.
+// Package source: binary.  objc_class_prefix: "P2P".
+syntax = "proto3";
+
+package proto.cloud.p2p;
+option objc_class_prefix = "P2P";
+
+import "proto/cloud/common.proto";
+import "proto/cloud/stream.proto";
+
+message MapChannelMsg {
+    enum MsgType {
+        MAP_INFO = 0;
+        MULTI_MAP_RESPONSE = 1;
+    }
+    MsgType type = 1;
+    oneof msg_data {
+        MapInfo map_info = 2;
+        bytes multi_map_response = 3;
+    }
+}
+
+message MapPixels {
+    bytes pixels = 1;
+    uint32 pixel_size = 2;
+}
+
+message MapInfo {
+    enum MapMsgType {
+        MAP_REALTIME = 0;
+        MAP_ROOMOUTLINE = 1;
+        OBSTACLE_INFO = 2;
+        RESTRICT_ZONES = 3;
+        ROOM_PARAMS = 4;
+        CRUISE_DATA = 5;
+        TEMPORARY_DATA = 6;
+    }
+    uint32 releases = 1;
+    uint32 map_id = 2;
+    bool map_stable = 3;
+    uint32 map_width = 4;
+    uint32 map_height = 5;
+    Point origin = 6;
+    repeated Pose docks = 7;
+    MapMsgType msg_type = 8;
+    oneof map_msg {
+        MapPixels pixels = 9;
+        stream.ObstacleInfo obstacles = 10;
+        stream.RestrictedZone restricted_zones = 11;
+        stream.RoomParams room_params = 12;
+        stream.CruiseData cruise_data = 13;
+        stream.TemporaryData temporary_data = 14;
+    }
+    uint32 is_new_map = 15;
+    string name = 16;
+}
+
+message CompleteMap {
+    uint32 releases = 1;
+    uint32 map_id = 2;
+    bool map_stable = 3;
+    uint32 map_width = 4;
+    uint32 map_height = 5;
+    Point origin = 6;
+    repeated Pose docks = 7;
+    MapPixels map = 8;
+    MapPixels room_outline = 9;
+    stream.ObstacleInfo obstacles = 10;
+    stream.RestrictedZone restricted_zones = 11;
+    stream.RoomParams room_params = 12;
+    stream.TemporaryData temporary_data = 13;
+    uint32 is_new_map = 14;
+    string name = 15;
+}
+
+message CompletePath {
+    enum Type {
+        SWEEP = 0;
+        MOP = 1;
+        SWEEP_MOP = 2;
+        NAVI = 3;
+        GOHOME = 4;
+    }
+    enum State {
+        FOLLOW = 0;
+        NEW = 1;
+    }
+    bytes path = 3;
+    uint32 path_lz4len = 4;
+}

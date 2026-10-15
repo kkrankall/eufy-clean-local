@@ -1,0 +1,32 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class UpgradeRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+message QueryUpgradeStatus {
+}
+
+message UpgradeStatus {
+    enum Status {
+        IDLE = 0;
+        DOWNLOADING = 1;
+        DOWNLOAD_COMPLETE = 2;
+        DOWNLOAD_FAILED = 3;
+        INSTALLING = 4;
+        INSTALL_COMPLETE = 5;
+        INSTALL_FAILED = 6;
+    }
+    enum Error {
+        NONE = 0;
+        NOT_IN_STATION = 1;
+        BATTERY_NOT_ENOUGH = 2;
+        MCU_INSTALL_FAILED = 3;
+        AP_INSTALL_FAILED = 4;
+        STATION_NOT_CONNECTED = 5;
+        STATION_INSTALL_FAILED = 6;
+    }
+    Status status = 1;
+    uint32 progress = 2;
+    Error error = 3;  // public type: string
+}

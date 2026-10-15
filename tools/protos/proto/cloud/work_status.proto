@@ -1,0 +1,233 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class WorkStatusRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+message WorkStatus {
+    enum State {
+        STANDBY = 0;
+        SLEEP = 1;
+        FAULT = 2;
+        CHARGING = 3;
+        FAST_MAPPING = 4;
+        CLEANING = 5;
+        REMOTE_CTRL = 6;
+        GO_HOME = 7;
+        CRUISIING = 8;
+    }
+    message Mode {
+        enum Value {
+            AUTO = 0;
+            SELECT_ROOM = 1;
+            SELECT_ZONE = 2;
+            SPOT = 3;
+            FAST_MAPPING = 4;
+            GLOBAL_CRUISE = 5;
+            ZONES_CRUISE = 6;
+            POINT_CRUISE = 7;
+            SCENE = 8;
+            SMART_FOLLOW = 9;
+            INTENSIVE = 10;  // iOS-only
+            CARPET = 11;  // iOS-only
+            DIRT_CRUISE = 12;  // iOS-only
+        }
+        Value value = 1;
+    }
+    message Charging {
+        enum State {
+            DOING = 0;
+            DONE = 1;
+            ABNORMAL = 2;
+        }
+        State state = 1;
+        bool energy_saving = 2;  // iOS-only
+    }
+    message Upgrading {
+        enum State {
+            DOING = 0;
+            DONE = 1;
+        }
+        State state = 1;
+    }
+    message Mapping {
+        enum RunState {
+            DOING = 0;
+            PAUSED = 1;
+        }
+        enum Mode {
+            MAPPING = 0;
+            RELOCATING = 1;
+        }
+        RunState state = 1;
+        Mode mode = 2;
+    }
+    message Cleaning {
+        enum RunState {
+            DOING = 0;
+            PAUSED = 1;
+        }
+        enum Mode {
+            CLEANING = 0;
+            RELOCATING = 1;
+            GOTO_POS = 2;
+            POOP_CLEANING = 3;
+        }
+        RunState state = 1;
+        Mode mode = 2;
+        bool scheduled_task = 3;
+    }
+    message GoWash {
+        enum RunState {
+            DOING = 0;
+            PAUSED = 1;
+        }
+        enum Mode {
+            NAVIGATION = 0;
+            WASHING = 1;
+            DRYING = 2;
+        }
+        RunState state = 1;
+        Mode mode = 2;
+    }
+    message GoHome {
+        enum RunState {
+            DOING = 0;
+            PAUSED = 1;
+        }
+        enum Mode {
+            COMPLETE_TASK = 0;
+            COLLECT_DUST = 1;
+            OTHRERS = 10;
+        }
+        RunState state = 1;
+        Mode mode = 2;
+    }
+    message Cruisiing {
+        enum RunState {
+            DOING = 0;
+            PAUSED = 1;
+        }
+        enum Mode {
+            RELOCATING = 0;
+            CRUISIING = 1;
+        }
+        RunState state = 1;
+        Mode mode = 2;
+    }
+    message Relocating {
+        enum State {
+            DOING = 0;
+        }
+        State state = 1;
+    }
+    message Breakpoint {
+        enum State {
+            DOING = 0;
+        }
+        State state = 1;
+    }
+    message RollerBrushCleaning {
+        enum State {
+            DOING = 0;
+        }
+        State state = 1;
+    }
+    message SmartFollow {
+        enum State {
+            DOING = 0;
+        }
+        enum Mode {
+            FOLLOWING = 0;
+            SEARCHING = 1;
+        }
+        State state = 1;
+        Mode mode = 2;
+        uint32 elapsed_time = 3;
+        uint32 area = 4;
+    }
+    message Station {
+        message WaterInjectionSystem {
+            enum State {
+                ADDING = 0;
+                EMPTYING = 1;
+            }
+            State state = 1;
+        }
+        message DustCollectionSystem {
+            enum State {
+                EMPTYING = 0;
+            }
+            State state = 1;
+        }
+        message WashingDryingSystem {
+            enum State {
+                WASHING = 0;
+                DRYING = 1;
+            }
+            State state = 1;
+            uint64 dry_start_time = 2;  // iOS-only
+            uint64 dry_end_time = 3;  // iOS-only
+            uint32 dry_total_time = 4;  // iOS-only
+        }
+        message WaterTankState {
+            bool clear_water_adding = 1;
+            bool waste_water_recycling = 2;
+        }
+        WaterInjectionSystem water_injection_system = 1;
+        DustCollectionSystem dust_collection_system = 2;
+        WashingDryingSystem washing_drying_system = 3;
+        WaterTankState water_tank_state = 4;
+    }
+    message Guide {  // iOS-only: not in public Android protos
+        message Mop {  // iOS-only: not in public Android protos
+            enum Type {  // iOS-only: not in public Android protos
+                BEFORE_CLEANING = 0;
+                CLEANING_DONE = 1;
+            }
+            Type type = 1;
+            uint64 remind_end_time = 2;
+        }
+        Mop mop = 1;
+    }
+    message Scene {
+        enum TaskMode {
+            AUTO = 0;
+            SELECT_ROOM = 1;
+            SELECT_ZONE = 2;
+        }
+        uint32 id = 1;
+        uint32 elapsed_time = 2;
+        uint32 estimate_time = 3;
+        string name = 4;
+        TaskMode task_mode = 5;
+    }
+    message Trigger {
+        enum Source {
+            UNKNOWN = 0;
+            APP = 1;
+            KEY = 2;
+            TIMING = 3;
+            ROBOT = 4;
+            REMOTE_CTRL = 5;
+        }
+        Source source = 1;
+    }
+    Mode mode = 1;
+    State state = 2;
+    Charging charging = 3;
+    Upgrading upgrading = 4;
+    Mapping mapping = 5;
+    Cleaning cleaning = 6;
+    GoWash go_wash = 7;
+    GoHome go_home = 8;
+    Cruisiing cruisiing = 9;
+    Relocating relocating = 10;
+    Breakpoint breakpoint = 11;
+    RollerBrushCleaning roller_brush_cleaning = 12;
+    SmartFollow smart_follow = 13;
+    Station station = 14;
+    Guide guide = 15;  // iOS-only
+    Scene current_scene = 19;
+    Trigger trigger = 20;
+}

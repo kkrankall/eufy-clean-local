@@ -1,0 +1,156 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class TimingRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+import "proto/cloud/clean_param.proto";
+import "proto/cloud/common.proto";
+
+message TimerInfo {
+    message Id {
+        uint32 value = 1;
+    }
+    message Status {
+        bool valid = 1;
+        bool opened = 2;
+        bool ignore_once = 3;  // iOS-only
+    }
+    message Desc {
+        enum Trigger {
+            SINGLE = 0;
+            CYCLE = 1;
+        }
+        message Timing {
+            uint32 user_tz = 1;
+            bool summer = 2;
+            uint32 hours = 3;
+            uint32 minutes = 4;
+        }
+        message Cycle {
+            uint32 week_bits = 1;
+        }
+        Trigger trigger = 1;
+        Timing timing = 2;
+        Cycle cycle = 3;
+    }
+    message Addition {
+        enum CreateType {  // iOS-only: not in public Android protos
+            SCHEDULE = 0;
+            SCENE = 1;
+        }
+        uint64 create_time = 1;
+        string create_user_id = 2;
+        uint64 renew_time = 3;
+        string renew_user_id = 4;
+        CreateType create_type = 5;  // iOS-only
+    }
+    message Action {
+        enum Type {
+            SCHEDULE_AUTO_CLEAN = 0;
+            SCHEDULE_ROOMS_CLEAN = 1;
+            SCHEDULE_CRUISE = 2;
+            SCHEDULE_SCENE_CLEAN = 3;
+        }
+        enum Mode {
+            GENERAL = 0;
+            CUSTOMIZE = 1;
+        }
+        message Precondition {
+        }
+        message ScheduleAutoClean {
+            message General {
+                Fan fan = 1;
+                MopMode mop_mode = 2;
+                CleanType clean_type = 3;
+                CleanExtent clean_extent = 4;
+                Switch smart_mode_sw = 5;
+                uint32 clean_times = 6;  // iOS-only
+            }
+            Mode mode = 1;
+            General general = 2;
+        }
+        message ScheduleRoomsClean {
+            message General {
+                message Room {
+                    uint32 id = 1;
+                    uint32 order = 2;
+                }
+                uint32 map_id = 1;
+                Fan fan = 2;
+                MopMode mop_mode = 3;
+                CleanType clean_type = 4;
+                CleanExtent clean_extent = 5;
+                repeated Room rooms = 6;
+            }
+            message Custom {
+                message Room {
+                    uint32 id = 1;
+                    uint32 order = 2;
+                    CleanType clean_type = 6;
+                    Fan fan = 7;
+                    MopMode mop_mode = 8;
+                    CleanExtent clean_extent = 9;
+                    uint32 clean_times = 10;
+                }
+                uint32 map_id = 1;
+                Switch smart_mode_sw = 2;
+                repeated Room rooms = 3;
+            }
+            Mode mode = 1;
+            General general = 2;
+            Custom custom = 3;
+        }
+        message ScheduleCruise {
+            uint32 map_id = 1;
+        }
+        message ScheduleSceneClean {
+            uint32 scene_id = 1;
+            string scene_name = 2;
+        }
+        Type type = 1;
+        Precondition precondition = 2;
+        oneof param {
+            ScheduleAutoClean sche_auto_clean = 3;
+            ScheduleRoomsClean sche_rooms_clean = 4;
+            ScheduleCruise sche_cruise = 5;
+            ScheduleSceneClean sche_scene_clean = 6;
+        }
+    }
+    Id id = 1;
+    Status status = 2;
+    Desc desc = 3;
+    Addition addition = 4;
+    Action action = 5;
+}
+
+message TimerRequest {
+    enum Method {
+        DEFAULT = 0;
+        ADD = 1;
+        DELETE = 2;
+        MOTIFY = 3;
+        OPEN = 4;
+        CLOSE = 5;
+        INQUIRY = 6;
+        IGNORE_ONCE = 7;
+    }
+    Method method = 1;
+    uint32 seq = 2;
+    TimerInfo timer = 3;
+}
+
+message TimerResponse {
+    message Result {
+        enum Value {
+            SUCCESS = 0;
+            FAILED = 1;
+        }
+        Value value = 1;
+        uint32 err_code = 2;
+    }
+    TimerRequest.Method method = 1;
+    uint32 seq = 2;
+    Result result = 3;
+    repeated TimerInfo timers = 4;
+}

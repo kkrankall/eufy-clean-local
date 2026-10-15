@@ -1,0 +1,294 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class StreamRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud.stream;
+
+import "proto/cloud/clean_param.proto";
+import "proto/cloud/common.proto";
+import "proto/cloud/control.proto";
+import "proto/cloud/scene.proto";
+
+message Metadata {
+    message Versions {
+        uint32 map_data = 1;
+    }
+    message ChanIds {
+        uint32 map_info = 1;
+        uint32 path = 2;
+        uint32 room_outline = 3;
+        uint32 room_params = 4;
+        uint32 restricted_zone = 5;
+        uint32 dynamic_data = 6;
+        uint32 temporary_data = 7;
+        uint32 obstacle_info = 8;
+        uint32 map_data = 9;
+        uint32 cruise_data = 10;
+        uint32 path_points = 11;  // iOS-only
+    }
+    Versions versions = 1;
+    ChanIds chan_ids = 2;
+}
+
+message MapInfo {
+    enum Type {
+        INCOMPLETE = 0;
+        ROUGH = 1;
+        EFFECTIVE = 2;
+        LIST_FULL = 3;
+        TEMPORARY = 4;  // iOS-only
+    }
+    message Dock {
+        enum Type {
+            ADAPTER = 0;
+            STATION = 1;
+        }
+        Type type = 1;
+        Pose pose = 2;
+    }
+    uint32 map_id = 1;
+    uint32 width = 2;
+    uint32 height = 3;
+    uint32 resolution = 4;
+    Point origin = 5;
+    repeated Pose docks = 6;
+    Type type = 7;
+    uint32 seq = 8;
+    uint32 angle = 9;
+    repeated Dock docks_v2 = 10;
+    uint32 user_reminder = 11;  // iOS-only
+}
+
+message Map {
+    enum Frame {
+        I = 0;
+        P = 1;
+    }
+    enum PixelValue {
+        UNKNOW = 0;
+        OBSTACLE = 1;
+        FREE = 2;
+        CARPET = 3;
+    }
+    message Index {
+        uint32 value = 1;
+    }
+    uint32 map_id = 1;
+    uint32 seq = 2;
+    Frame frame = 3;
+    bytes pixels = 4;
+    uint32 pixel_size = 5;
+    MapInfo info = 6;
+    string name = 7;
+    uint32 id = 8;
+    uint32 releases = 9;
+    Index index = 10;
+    bytes carpet_pixels = 11;  // iOS-only
+    uint32 carpet_pixel_size = 12;  // iOS-only
+}
+
+message PathPoint {
+    uint32 xy = 1;
+    uint32 flags = 2;
+}
+
+message RoomOutline {
+    uint32 map_id = 1;
+    uint32 releases = 2;
+    uint32 width = 3;
+    uint32 height = 4;
+    uint32 resolution = 5;
+    Point origin = 6;
+    bytes pixels = 7;
+    uint32 pixel_size = 8;
+}
+
+message RoomParams {
+    message Room {
+        message Order {
+            uint32 value = 1;
+        }
+        message Custom {
+            CleanType clean_type = 1;
+            Fan fan = 2;
+            MopMode mop_mode = 3;
+            CleanExtent clean_extent = 4;
+            uint32 clean_times = 5;
+        }
+        uint32 id = 1;
+        string name = 2;
+        Floor floor = 3;
+        RoomScene scene = 4;
+        Order order = 6;
+        Custom custom = 7;
+    }
+    bool custom_enable = 1;
+    repeated Room rooms = 2;
+    uint32 map_id = 3;
+    uint32 releases = 4;
+    Switch smart_mode_sw = 6;
+}
+
+message RestrictedZone {
+    message Suggestion {
+        message LineWrap {
+            uint32 id = 1;
+            Line line = 2;
+        }
+        message QuadrangleWrap {
+            uint32 id = 1;
+            Quadrangle quadrangle = 2;
+        }
+        repeated LineWrap virtual_walls = 1;
+        repeated QuadrangleWrap forbidden_zones = 2;
+        repeated QuadrangleWrap ban_mop_zones = 3;
+    }
+    message DrawZone {  // iOS-only: not in public Android protos
+        enum Type {  // iOS-only: not in public Android protos
+            CARPET_NORMAL = 0;
+            CARPET_BOOST_IQ = 1;
+            CARPET_AVOID = 2;
+            CARPET_EXTRA_LONG = 3;
+            CARPET_LONG = 4;
+            CARPET_MEDIUM = 5;
+            CARPET_SHORT = 6;
+        }
+        message RoomCarpet {  // iOS-only: not in public Android protos
+            uint32 room_id = 1;
+        }
+        message CarpetId {  // iOS-only: not in public Android protos
+            uint32 value = 1;
+        }
+        message Property {  // iOS-only: not in public Android protos
+            bool valid = 1;
+            bool from_sensor = 2;
+        }
+        Type type = 1;
+        Quadrangle quadrangle = 2;
+        RoomCarpet room_carpet = 3;
+        CarpetId carpet_id = 4;
+        Property property = 5;
+    }
+    repeated Line virtual_walls = 1;
+    repeated Quadrangle forbidden_zones = 2;
+    repeated Quadrangle ban_mop_zones = 3;
+    uint32 map_id = 4;
+    uint32 releases = 5;
+    Suggestion suggestion = 7;
+    repeated DrawZone draw_zone = 11;  // iOS-only
+}
+
+message DynamicData {
+    Pose cur_pose = 1;
+}
+
+message TemporaryData {
+    message PredictPath {  // iOS-only: not in public Android protos
+        uint32 start_offset = 1;
+        repeated Point points = 2;
+    }
+    SelectRoomsClean select_rooms_clean = 1;
+    SelectZonesClean select_zones_clean = 2;
+    Goto goto_location = 3;
+    PointCruise select_point_cruise = 4;
+    ZonesCruise select_zones_cruise = 5;
+    CarpetClean carpet_clean = 6;  // iOS-only
+    PredictPath predict_path = 7;  // iOS-only
+}
+
+message ObstacleInfo {
+    message Obstacle {
+        enum ShowType {
+            POSITION = 0;
+            OUTLINE = 1;
+            FILL = 2;
+            BITMAP = 3;
+        }
+        message Bitmap {
+            Point ref_point = 1;
+            uint32 width = 2;
+            uint32 height = 3;
+            uint32 data_len = 4;
+            bytes data = 5;
+        }
+        message Valid {
+            bool value = 1;
+        }
+        message PlacementInfo {  // iOS-only: not in public Android protos
+            enum OnFloor {  // iOS-only: not in public Android protos
+                GROUND = 0;
+                CARPET = 1;
+            }
+            OnFloor on_floor = 1;
+        }
+        message Timestamp {  // iOS-only: not in public Android protos
+            uint64 value = 1;
+        }
+        message Source {  // iOS-only: not in public Android protos
+            enum Type {  // iOS-only: not in public Android protos
+                UNKNOWN = 0;
+                SENSOR = 1;
+                VISION = 2;
+                APP = 3;
+            }
+            Type type = 1;
+        }
+        message Modified {  // iOS-only: not in public Android protos
+            bool value = 1;
+        }
+        message Id {  // iOS-only: not in public Android protos
+            uint32 value = 1;
+        }
+        string object_type = 1;
+        ShowType show_type = 2;
+        repeated Point show_points = 3;
+        Bitmap bitmap = 4;
+        sint32 theta = 5;
+        string photo_id = 6;
+        uint32 accuracy = 7;
+        Valid valid = 8;
+        PlacementInfo link_info = 9;  // iOS-only
+        Timestamp timestamp = 10;  // iOS-only
+        Source source = 11;  // iOS-only
+        Modified modified = 12;  // iOS-only
+        Id id = 13;  // iOS-only
+    }
+    uint32 map_id = 1;
+    uint32 releases = 2;
+    repeated Obstacle obstacles = 3;
+}
+
+message CruiseData {
+    message ProcessData {
+        Point points = 1;
+        repeated string photo_id = 2;
+    }
+    repeated ProcessData cruise_data = 1;
+    uint32 map_id = 2;
+    uint32 releases = 3;
+}
+
+message MapDescription {
+    string name = 2;
+    uint32 create_cause = 3;
+    uint64 create_time = 4;
+    uint64 last_time = 5;
+    uint32 map_id = 6;
+    uint32 releases = 7;
+}
+
+message MapBackup {
+    MapDescription desc = 1;
+    Map map = 2;
+    RoomOutline rooms = 3;
+    RoomParams room_params = 4;
+    RestrictedZone restricted_zone = 5;
+}
+
+message SceneWrap {
+    message Scene {
+        SceneInfo info = 1;
+        repeated SceneTask tasks = 2;
+    }
+    repeated Scene scenes = 1;
+}

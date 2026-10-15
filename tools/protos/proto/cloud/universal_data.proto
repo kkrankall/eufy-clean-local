@@ -1,0 +1,23 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class UniversalDataRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+import "proto/cloud/common.proto";
+
+message UniversalDataRequest {
+}
+
+message UniversalDataResponse {
+    message RoomTable {
+        message Data {
+            uint32 id = 1;
+            string name = 2;
+            RoomScene scene = 3;
+        }
+        uint32 map_id = 1;
+        repeated Data data = 2;
+    }
+    RoomTable cur_map_room = 1;
+}

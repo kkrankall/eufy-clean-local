@@ -1,0 +1,38 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class LanguageRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+message LanguageRequest {
+    message Desc {
+        uint32 set_id = 1;
+        string url = 2;
+        string md5 = 3;
+        uint32 version = 4;
+        uint32 size = 5;
+    }
+    message Selection {
+        enum Value {
+            DEFAULT = 0;
+            USER = 1;
+        }
+        Value value = 1;
+    }
+    Desc desc = 1;
+    Selection selection = 2;
+}
+
+message LanguageResponse {
+    enum State {
+        IDLE = 0;
+        UPDATING = 1;
+        SUCCESS = 2;
+        FAILURE = 3;
+    }
+    uint32 default_id = 1;
+    uint32 current_id = 2;
+    uint32 version = 3;
+    uint32 set_id = 4;
+    State state = 5;
+}

@@ -1,0 +1,105 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class CleanParamRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+import "proto/cloud/common.proto";
+
+message Fan {
+    enum Suction {
+        QUIET = 0;
+        STANDARD = 1;
+        TURBO = 2;
+        MAX = 3;
+        MAX_PLUS = 4;
+    }
+    Suction suction = 1;
+}
+
+message MopMode {
+    enum Level {
+        LOW = 0;
+        MIDDLE = 1;
+        HIGH = 2;
+    }
+    enum CornerClean {
+        NORMAL = 0;
+        DEEP = 1;
+    }
+    Level level = 1;
+    CornerClean corner_clean = 2;
+}
+
+message CleanCarpet {
+    enum Strategy {
+        AUTO_RAISE = 0;
+        AVOID = 1;
+        IGNORE = 2;
+    }
+    message Mode {  // iOS-only: not in public Android protos
+        enum Value {  // iOS-only: not in public Android protos
+            SAFE = 0;
+            EDGE = 1;
+        }
+        Value value = 1;
+    }
+    message Edge {  // iOS-only: not in public Android protos
+        enum Value {  // iOS-only: not in public Android protos
+            OFF = 0;
+            WIDE = 1;
+            NARROW = 2;
+        }
+        Value value = 1;
+    }
+    Strategy strategy = 1;
+    Mode mode = 2;  // iOS-only
+    Edge edge = 3;  // iOS-only
+}
+
+message CleanType {
+    enum Value {
+        SWEEP_ONLY = 0;
+        MOP_ONLY = 1;
+        SWEEP_AND_MOP = 2;
+        SWEEP_THEN_MOP = 3;
+    }
+    Value value = 1;
+}
+
+message CleanExtent {
+    enum Value {
+        NORMAL = 0;
+        NARROW = 1;
+        QUICK = 2;
+    }
+    Value value = 1;
+}
+
+message CleanTimes {
+    uint32 auto_clean = 1;
+    uint32 select_rooms = 2;
+    uint32 spot_clean = 4;
+}
+
+message CleanParam {
+    CleanType clean_type = 1;
+    CleanCarpet clean_carpet = 2;
+    CleanExtent clean_extent = 3;
+    MopMode mop_mode = 4;
+    Switch smart_mode_sw = 5;
+    Fan fan = 6;
+    uint32 clean_times = 7;
+}
+
+message CleanParamRequest {
+    CleanParam clean_param = 1;
+    CleanParam area_clean_param = 2;
+}
+
+message CleanParamResponse {
+    CleanParam clean_param = 1;
+    CleanTimes clean_times = 2;
+    CleanParam area_clean_param = 3;
+    CleanParam running_clean_param = 4;
+}

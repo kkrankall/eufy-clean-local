@@ -1,0 +1,46 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class ErrorCodeRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+import "proto/cloud/common.proto";
+
+message ErrorSetting {
+    repeated uint32 warn_mask = 1;
+    repeated string obstacle_reminder_mask = 2;
+}
+
+message ErrorCode {
+    message NewCode {
+        repeated uint32 error = 1;
+        repeated uint32 warn = 2;
+    }
+    message Battery {
+        bool restored = 1;
+    }
+    message ObstacleReminder {
+        enum Type {
+            POOP = 0;
+        }
+        Type type = 1;
+        string photo_id = 2;
+        uint32 accuracy = 3;
+        uint32 map_id = 4;
+        oneof description {
+            Point point = 5;
+        }
+    }
+    uint64 last_time = 1;
+    repeated uint32 error = 2;
+    repeated uint32 warn = 3;
+    ErrorSetting setting = 4;
+    NewCode new_code = 10;
+    Battery battery = 11;
+    repeated ObstacleReminder obstacle_reminder = 12;
+}
+
+message PromptCode {
+    uint64 last_time = 1;
+    repeated uint32 value = 2;
+}

@@ -1,0 +1,73 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class MultiMapsRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+import "proto/cloud/common.proto";
+import "proto/cloud/p2pdata.proto";
+
+message MultiMapsManageRequest {
+    enum Method {
+        MAP_RESET = 0;
+        MAP_RENAME = 1;
+        MAP_LOAD = 2;
+        MAP_REPLACE = 3;
+        MAP_DELETE = 4;
+        MAP_SAVE = 5;
+        MAP_IGNORE = 6;
+        MAP_GET_ALL = 7;
+        MAP_GET_ONE = 8;
+        MAP_RECOVERY = 9;
+        MAP_HANDLE_TEMP = 10;  // iOS-only
+    }
+    message Rename {
+        uint32 cloud_mapid = 1;
+        string new_name = 2;
+    }
+    message Common {
+        uint32 cloud_mapid = 1;
+    }
+    message SaveOptions {
+        Switch multi_map_sw = 1;
+    }
+    message HandleTemp {  // iOS-only: not in public Android protos
+        enum Type {  // iOS-only: not in public Android protos
+            SAVE = 0;
+            CONTINUE = 1;
+            DELETE_AND_MAPPING = 2;
+            USE_OTHER_MAP = 3;
+        }
+        message UseMap {  // iOS-only: not in public Android protos
+            uint32 cloud_mapid = 1;
+        }
+        Type type = 1;
+        UseMap use_map = 2;
+    }
+    Method method = 1;
+    uint32 seq = 2;
+    oneof param {
+        Rename rename = 3;
+        Common common = 4;
+        SaveOptions save_options = 5;
+        HandleTemp handle_temp = 6;  // iOS-only
+    }
+}
+
+message MultiMapsManageResponse {
+    enum Result {
+        SUCCESS = 0;
+        FAILED = 1;
+        STARTED = 2;
+    }
+    message CompleteMaps {
+        repeated p2p.CompleteMap complete_map = 1;
+    }
+    MultiMapsManageRequest.Method method = 1;
+    uint32 seq = 2;
+    Result result = 3;
+    oneof param {
+        p2p.MapInfo map_infos = 11;
+        CompleteMaps complete_maps = 12;
+    }
+}

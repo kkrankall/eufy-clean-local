@@ -1,0 +1,14 @@
+eufy Clean (Local)
+Copyright (c) 2026 Kevin Krankall
+
+custom_components/eufy_clean_local/eufy_cloud.py adapts the eufy -> Tuya
+local-key lookup from damacus/robovac (https://github.com/damacus/robovac),
+licensed under the Apache License, Version 2.0, which in turn credits Andre
+Borie's eufy-device-id-and-local-key-grabber. A copy of the Apache License 2.0
+is available at https://www.apache.org/licenses/LICENSE-2.0.
+custom_components/eufy_clean_local/legacy.py follows robovac's T2118 (RoboVac 30C)
+DP layout and error list.
+
+The protobuf schema in tools/protos was recovered from the eufy iOS app's
+CleanWidgetProtobuf framework for interoperability. eufy is a trademark of
+Anker Innovations; this project is not affiliated with or endorsed by Anker.

@@ -1,0 +1,114 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class BleRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+message BtAppMsg {
+    message GetProductInfo {
+        message RemedyField {
+            uint32 distribute_version2 = 1;
+        }
+        message Country {
+            string code = 1;
+        }
+        bool get = 1;
+        uint32 distribute_version = 2;
+        RemedyField remedy_field = 3;
+        Country country = 4;
+        bool support_ack = 5;  // iOS-only
+    }
+    message GetApList {
+        uint32 max_num = 1;
+    }
+    message Distribute {
+        string ssid = 1;
+        string passwd = 2;
+        string token = 3;
+        string user_id = 4;
+        string time_zone_id = 5;
+        string domain = 6;
+        string app_id = 7;
+        string house_id = 8;
+        string dev_name = 9;
+        string hub_name = 10;
+    }
+    message Ack {  // iOS-only: not in public Android protos
+        enum Type {  // iOS-only: not in public Android protos
+            GET_AP_LIST = 0;
+            DISTRIBUTE = 1;
+        }
+        Type type = 1;
+    }
+    message Debug {
+        string d_data = 1;
+    }
+    GetProductInfo get_product_info = 1;
+    GetApList get_ap_list = 2;
+    Distribute distribute = 3;
+    Ack ack = 4;  // iOS-only
+    Debug req = 5;
+}
+
+message BtRobotMsg {
+    message ProductInfo {
+        enum Result {
+            E_OK = 0;
+            E_FAIL = 1;
+        }
+        message RemedyField {
+            uint32 distribute_version2 = 1;
+        }
+        Result ret = 1;
+        string brand = 2;
+        string code_name = 3;
+        string model = 4;
+        string name = 5;
+        string alisa_name = 6;
+        string cloud_pid = 7;
+        string mac = 8;
+        uint32 distribute_version = 10;
+        RemedyField remedy_field = 11;
+        bool support_ack = 12;  // iOS-only
+    }
+    message ApList {
+        message ApInfo {
+            string ssid = 1;
+            int32 dbm = 2;
+        }
+        repeated ApInfo ap_info = 1;
+    }
+    message DistributeResult {
+        enum Value {
+            E_OK = 0;
+            E_SRV_ERR = 1;
+            E_AP_NOT_FOUND = 2;
+            E_PASSWD_ERR = 3;
+            E_DHCP_ERR = 4;
+            E_GW_ERR = 5;
+            E_DNS_ERR = 6;
+            E_NET_ERR = 7;
+            E_PARAM_ERR = 8;  // iOS-only
+        }
+        message AiotResult {
+            int32 get_mqtt_info_ret = 1;
+            int32 get_data_point_ret = 2;
+            int32 connect_mqtt_ret = 3;
+            int32 bind_ret = 4;
+        }
+        Value value = 1;
+        string mac = 2;
+        string pid = 3;
+        string uuid = 4;
+        string authkey = 5;
+        int32 dbm = 6;
+        AiotResult aiot_result = 7;
+    }
+    message Debug {
+        string d_data = 1;
+    }
+    ProductInfo product_info = 1;
+    ApList ap_list = 2;
+    DistributeResult distribute_result = 3;
+    Debug ack = 5;
+}

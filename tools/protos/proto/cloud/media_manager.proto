@@ -1,0 +1,97 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class MediaManagerRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+message MediaSetting {
+    enum Resolution {
+        R_480P = 0;
+        R_720P = 1;
+        R_1080P = 2;
+    }
+    message RTStream {
+        Resolution resolution = 1;
+    }
+    message Record {
+        Resolution resolution = 1;
+        uint32 bitrate = 2;
+    }
+    message Capture {
+        uint32 width = 1;
+        uint32 height = 2;
+    }
+    RTStream rt_stream = 1;
+    Record record = 2;
+    Capture capture = 3;
+}
+
+message MediaStatus {
+    enum State {
+        IDLE = 0;
+        RECORDING = 1;
+    }
+    enum Storage {
+        NORMAL = 0;
+        THRESHOLD = 1;
+        FULL = 2;
+    }
+    State state = 1;
+    Storage storage = 2;
+    uint32 total_space = 3;
+    uint32 photo_space = 4;
+    uint32 video_space = 5;
+    bool bind_state = 6;
+}
+
+message MediaManagerRequest {
+    message Control {
+        enum Method {
+            RECORD_START = 0;
+            RECORD_STOP = 1;
+            CAPTURE = 2;
+        }
+        Method method = 1;
+        uint32 seq = 2;
+    }
+    message BindMediaSvc {
+        uint32 seq = 1;
+        uint32 c = 2;
+        uint32 d = 3;
+        string g = 4;
+        uint32 j = 5;
+        string user_account = 6;
+    }
+    Control control = 1;
+    MediaSetting setting = 2;
+    BindMediaSvc bind_media_svc_data = 3;
+}
+
+message MediaManagerResponse {
+    message Control {
+        enum Result {
+            SUCCESS = 0;
+            FAIL = 1;
+        }
+        message FileInfo {
+            string filepath = 1;
+            string id = 2;
+        }
+        MediaManagerRequest.Control.Method method = 1;
+        uint32 seq = 2;
+        Result result = 3;
+        FileInfo file_info = 4;
+    }
+    message BindMediaSvc {
+        enum Result {
+            SUCCESS = 0;
+            FAIL = 1;
+        }
+        uint32 seq = 1;
+        Result result = 2;
+    }
+    Control control = 1;
+    MediaSetting setting = 2;
+    MediaStatus status = 3;
+    BindMediaSvc bind_media_svc = 4;
+}

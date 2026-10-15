@@ -1,0 +1,22 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class CleanStatisticsRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+message CleanStatistics {
+    message Single {
+        uint32 clean_duration = 1;
+        uint32 clean_area = 2;
+    }
+    message Total {
+        uint32 clean_duration = 1;
+        uint32 clean_area = 2;
+        uint32 clean_count = 3;
+        uint32 pdc_use_duration = 4;  // iOS-only
+        uint32 pdc_use_count = 5;  // iOS-only
+    }
+    Single single = 1;
+    Total total = 2;
+    Total user_total = 3;
+}

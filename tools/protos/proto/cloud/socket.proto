@@ -1,0 +1,29 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class SocketRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+import "proto/cloud/ble.proto";
+
+message SocketBroadcast {
+    bool is_bind = 1;
+    string device_sn = 2;
+    string user_id = 3;
+}
+
+message SocketVerify {
+    string random = 1;
+    string device_sn = 2;
+    string user_id = 3;
+    BtAppMsg.GetProductInfo.Country country = 4;  // iOS-only
+}
+
+message SocketTransData {
+    enum Type {
+        E_DISTRIBUTE = 0;
+        E_DP = 1;
+    }
+    Type type = 1;
+    BtAppMsg.Distribute distribute = 2;
+}

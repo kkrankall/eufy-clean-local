@@ -1,0 +1,99 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class DebugRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+import "proto/cloud/common.proto";
+
+message DebugRequest {
+    message FaultReport {
+        uint32 seq = 1;
+    }
+    message ImageFeedback {
+        enum Type {  // iOS-only: not in public Android protos
+            CAPTURE = 0;
+            FEEDBACK = 1;
+        }
+        message Feedback {  // iOS-only: not in public Android protos
+            string object_type = 1;
+            string photo_id = 2;
+        }
+        Type type = 3;  // iOS-only
+        oneof param {
+            Feedback feedback = 4;  // iOS-only
+        }
+        // public-only (absent in iOS): string object_type = 1;
+        // public-only (absent in iOS): string photo_id = 2;
+    }
+    message ExtractLog {  // iOS-only: not in public Android protos
+        uint64 start_time = 1;
+        uint64 end_time = 2;
+        repeated string conditions = 3;
+    }
+    message ErrorTrigger {  // iOS-only: not in public Android protos
+        enum Type {  // iOS-only: not in public Android protos
+            GET_IMAGE = 0;
+        }
+        uint32 seq = 1;
+        uint32 err_code = 2;
+        Type type = 3;
+    }
+    message Matter {  // iOS-only: not in public Android protos
+        message DeleteFabric {  // iOS-only: not in public Android protos
+            uint32 fabric_index = 1;
+        }
+        Switch bcm_sw = 1;
+        DeleteFabric delete_fabric = 2;
+        Switch trigger_get_factory_data = 3;
+    }
+    Switch log_sw = 1;
+    FaultReport fault_report = 2;
+    Switch capture_sw = 3;
+    ImageFeedback image_feedback = 4;
+    ExtractLog extract_log = 5;  // iOS-only
+    ErrorTrigger error_trigger = 6;  // iOS-only
+    Switch toggle_mop_raise = 11;
+    Switch toggle_mop_spin = 12;
+    Matter matter = 13;  // iOS-only
+    Switch analysis_switch = 14;  // iOS-only
+}
+
+message DebugResponse {
+    message UpdateInfo {
+        uint32 err_code = 1;
+    }
+    message WebTtyInfo {
+        string connection_data = 1;
+    }
+    message Matter {  // iOS-only: not in public Android protos
+        enum FactoryDataState {  // iOS-only: not in public Android protos
+            GET_GOING = 0;
+            GET_SUCCESS = 1;
+            USE_SUCCESS = 2;
+            GET_FAILED = 3;
+            USE_FAILED = 4;
+            CLOUD_DATA_ERROR = 5;
+        }
+        message FabricInfo {  // iOS-only: not in public Android protos
+            uint32 vendor_id = 1;
+            uint64 fabric_id = 2;
+            uint64 node_id = 3;
+            uint32 fabric_index = 4;
+            string fabric_label = 5;
+        }
+        Switch bcm_sw = 1;
+        string manual_pairing_code = 2;
+        string qr_code = 3;
+        string qr_code_url = 4;
+        repeated FabricInfo fabric_infos = 5;
+        FactoryDataState factory_data_state = 6;
+    }
+    Switch log_sw = 1;
+    UpdateInfo update_info = 2;
+    WebTtyInfo webtty_info = 3;
+    Switch capture_sw = 4;
+    DebugRequest.ExtractLog extract_log = 5;  // iOS-only
+    Matter matter = 6;  // iOS-only
+    Switch rd_mode = 7;  // iOS-only
+}

@@ -1,0 +1,131 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class UnisettingRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+import "proto/cloud/common.proto";
+
+message HighDetection {  // iOS-only: not in public Android protos
+    enum Sensitivity {  // iOS-only: not in public Android protos
+        SAFE_MODE = 0;
+        MEDIUM_MODE = 1;
+        FREE_MODE = 2;
+    }
+    Sensitivity sensitivity = 1;
+}
+
+message EnergySaving {  // iOS-only: not in public Android protos
+    message TimePoint {  // iOS-only: not in public Android protos
+        uint32 hour = 1;
+        uint32 minute = 2;
+    }
+    Switch sw = 1;
+    TimePoint begin = 2;
+    TimePoint end = 3;
+}
+
+message UnisettingRequest {
+    message MultiMapOptions {
+        message Retain {
+            repeated uint32 map_id = 1;
+        }
+        Retain retain = 1;
+    }
+    message WifiSetting {
+        message Deletion {
+            repeated string ssid = 1;
+        }
+        Deletion deletion = 1;
+    }
+    Switch children_lock = 1;
+    Switch cruise_continue_sw = 2;
+    Switch multi_map_sw = 3;
+    Switch ai_see = 4;
+    MultiMapOptions multi_map_options = 5;
+    WifiSetting wifi_setting = 6;
+    Switch water_level_sw = 7;
+    Switch suggest_restricted_zone_sw = 8;
+    Switch deep_mop_corner_sw = 9;
+    Numerical dust_full_remind = 10;
+    Switch live_photo_sw = 11;
+    Switch smart_follow_sw = 12;
+    Switch poop_avoidance_sw = 13;
+    Switch pet_mode_sw = 14;
+    Switch side_brush_extend_sw = 15;  // iOS-only
+    Switch first_clean_carpet_sw = 16;  // iOS-only
+    Switch dirty_area_focus_clean_sw = 17;  // iOS-only
+    Switch dirty_area_second_clean_sw = 18;  // iOS-only
+    Switch gesture_point_clean_sw = 19;  // iOS-only
+    Switch dirty_inspection_sw = 20;  // iOS-only
+    HighDetection high_detection = 21;  // iOS-only
+    EnergySaving energy_saving = 22;  // iOS-only
+}
+
+message Unistate {
+    message LiveMap {
+        enum StateBit {
+            BASE = 0;
+            ROOM = 1;
+            KITCHEN = 2;
+            PET = 3;
+        }
+        uint32 state_bits = 1;
+    }
+    Switch mop_holder_state_l = 1;
+    Switch mop_holder_state_r = 2;
+    Switch custom_clean_mode = 3;
+    Active map_valid = 4;
+    Switch mop_state = 5;
+    LiveMap live_map = 6;
+    uint32 clean_strategy_version = 7;
+    Switch power_switch_state = 8;  // iOS-only
+    Switch pdc_state = 9;  // iOS-only
+}
+
+message WifiData {
+    message Ap {
+        enum Frequency {
+            FREQ_2_4G = 0;
+            FREQ_5G = 1;
+        }
+        message Connection {
+            enum Result {
+                OK = 0;
+                PASSWD_ERR = 1;
+            }
+            Result result = 1;
+            uint64 timestamp = 2;
+        }
+        string ssid = 1;
+        Frequency frequency = 2;
+        Connection connection = 3;
+    }
+    repeated Ap ap = 1;
+}
+
+message UnisettingResponse {
+    Switch children_lock = 1;
+    Switch cruise_continue_sw = 2;
+    Switch multi_map_sw = 3;
+    Switch ai_see = 4;
+    Switch water_level_sw = 5;
+    Switch suggest_restricted_zone_sw = 6;
+    Switch deep_mop_corner_sw = 7;
+    Numerical dust_full_remind = 8;
+    Switch live_photo_sw = 9;
+    Unistate unistate = 10;
+    uint32 ap_signal_strength = 11;
+    WifiData wifi_data = 12;
+    Switch smart_follow_sw = 13;
+    Switch poop_avoidance_sw = 14;
+    Switch pet_mode_sw = 15;
+    Switch side_brush_extend_sw = 16;  // iOS-only
+    Switch first_clean_carpet_sw = 17;  // iOS-only
+    Switch dirty_area_focus_clean_sw = 18;  // iOS-only
+    Switch dirty_area_second_clean_sw = 19;  // iOS-only
+    Switch gesture_point_clean_sw = 20;  // iOS-only
+    Switch dirty_inspection_sw = 21;  // iOS-only
+    HighDetection high_detection = 22;  // iOS-only
+    EnergySaving energy_saving = 23;  // iOS-only
+}

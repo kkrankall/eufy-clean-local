@@ -1,0 +1,158 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class MapEditRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+import "proto/cloud/clean_param.proto";
+import "proto/cloud/common.proto";
+import "proto/cloud/stream.proto";
+
+message MapEditRequest {
+    enum Method {
+        MERGE_ROOMS = 0;
+        DIVIDE_ROOM = 1;
+        RESET_ROOMS = 2;
+        RENAME_ROOM = 3;
+        SET_RESTRICTED_ZONES = 4;
+        SET_ROOMS_CUSTOM = 5;
+        SET_CRUISE_POINTS = 6;
+        ROTATION = 7;
+        IGNORE_OBSTACLE = 8;
+        REVERT_EDIT = 9;  // iOS-only
+        BATCH_RENAME_ROOM = 10;  // iOS-only
+        PROCESS_GUIDE = 11;  // iOS-only
+    }
+    message Exclusive {  // iOS-only: not in public Android protos
+        enum Type {  // iOS-only: not in public Android protos
+            KEEP = 0;
+            RELEASE = 1;
+        }
+        Type type = 1;
+        uint32 uuid = 2;
+    }
+    message MergeRooms {
+        repeated uint32 room_ids = 1;
+    }
+    message DivideRoom {
+        uint32 room_id = 1;
+        repeated Point points = 2;
+    }
+    message RoomsCustom {
+        enum Condition {
+            GENERAL = 0;
+            RESERVATION_IN_PROGRESS = 1;
+        }
+        message Enable {
+            bool value = 1;
+        }
+        message Order {
+            message Room {
+                uint32 id = 1;
+                uint32 order = 2;
+            }
+            repeated Room rooms = 1;
+        }
+        message Parm {
+            message Room {
+                message Custom {
+                    CleanType clean_type = 1;
+                    Fan fan = 2;
+                    MopMode mop_mode = 3;
+                    CleanExtent clean_extent = 4;
+                    uint32 clean_times = 5;
+                }
+                uint32 id = 1;
+                Custom custom = 2;
+            }
+            repeated Room rooms = 1;
+        }
+        Enable custom_enable = 1;
+        Order rooms_order = 2;
+        Parm rooms_parm = 3;
+        Switch smart_mode_sw = 4;
+        Condition condition = 5;
+    }
+    message RoomDesc {
+        uint32 id = 1;
+        string name = 2;
+        Floor floor = 3;
+        RoomScene scene = 4;
+    }
+    message BatchRoomDesc {  // iOS-only: not in public Android protos
+        repeated RoomDesc rooms = 1;
+    }
+    message CruisePoints {
+        repeated Point points = 1;
+    }
+    message Rotation {
+        uint32 angle = 1;
+    }
+    message IgnoreObstacle {
+        bool valid = 1;
+        string object_type = 2;
+        string photo_id = 3;
+        Point point = 4;
+    }
+    message RevertEdit {  // iOS-only: not in public Android protos
+        enum Type {  // iOS-only: not in public Android protos
+            LAST = 0;
+            DONE = 1;
+        }
+        Type type = 1;
+    }
+    message ProcessGuide {  // iOS-only: not in public Android protos
+        enum Type {  // iOS-only: not in public Android protos
+            MOP = 0;
+        }
+        message Mop {  // iOS-only: not in public Android protos
+            enum Value {  // iOS-only: not in public Android protos
+                SWEEP = 0;
+                IGNORE = 1;
+            }
+            Value value = 1;
+        }
+        Type type = 1;
+        Mop mop = 2;
+    }
+    Method method = 1;
+    uint32 seq = 2;
+    uint32 map_id = 3;
+    Exclusive exclusive = 4;  // iOS-only
+    oneof param {
+        MergeRooms merge_rooms = 6;
+        DivideRoom divide_room = 7;
+        stream.RestrictedZone restricted_zone = 8;
+        RoomDesc room_desc = 9;
+        RoomsCustom rooms_custom = 10;
+        CruisePoints cruise_points = 11;
+        Rotation rotation = 12;
+        IgnoreObstacle ignore_obstacle = 13;
+        RevertEdit revert_edit = 14;  // iOS-only
+        BatchRoomDesc batch_room_desc = 15;  // iOS-only
+        ProcessGuide process_guide = 16;  // iOS-only
+    }
+}
+
+message MapEditResponse {
+    enum Result {
+        SUCCESS = 0;
+        STARTED = 1;
+        FAILED = 2;
+    }
+    message FailCode {
+        enum Value {
+            UNKNOWN = 0;
+            AREA_SMALL = 1;
+            ROOM_UNADJACENT = 2;
+            TOO_MANY_ROOMS = 3;
+            OPERATION_IS_LOCKED = 4;  // iOS-only
+            AREA_LARGE = 5;  // iOS-only
+        }
+        Value value = 1;
+    }
+    MapEditRequest.Method method = 1;
+    uint32 seq = 2;
+    Result result = 3;
+    FailCode fail_code = 4;
+}

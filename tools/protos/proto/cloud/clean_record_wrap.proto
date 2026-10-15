@@ -1,0 +1,11 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class CleanRecordWrapRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+message CleanRecordWrap {
+    uint32 id = 1;
+    bytes desc = 2;
+    bytes data = 3;
+}

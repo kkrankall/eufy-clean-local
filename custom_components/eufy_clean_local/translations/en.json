@@ -1,0 +1,237 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "eufy account",
+        "description": "Your eufy app login is used once to look up the robot's local key, and later to download its map. Control and status stay on your local network.",
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        }
+      },
+      "pick": {
+        "title": "Choose a robot",
+        "data": {
+          "device_id": "Robot"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Sign in to eufy again",
+        "description": "eufy rejected the saved login for {email}. Enter the account's current password.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "eufy rejected the email or password.",
+      "cannot_connect": "Could not reach the eufy or Tuya cloud. Check the log for details.",
+      "no_devices": "No supported robot (L60 family or RoboVac 30C) with a local key was found on this account, or they're all set up already."
+    },
+    "abort": {
+      "already_configured": "This robot is already set up.",
+      "reauth_successful": "Signed in again; the integration has reloaded."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options",
+        "data": {
+          "host": "Robot IP address (leave empty to discover it)",
+          "map_interval": "Map refresh interval while cleaning (seconds)",
+          "rooms": "Rooms, until the map provides them (id=name, one per line)",
+          "live_interval": "Live robot position while cleaning (seconds, 0 = off)"
+        },
+        "data_description": {
+          "rooms": "Example: 1=Kitchen. Room ids are small numbers; the robot's map replaces this list once the cloud has it.",
+          "live_interval": "How often the live map camera moves the robot while it cleans. Each update is one cloud request; nothing is read while docked."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "battery": {
+        "name": "Battery"
+      },
+      "status": {
+        "name": "Status"
+      },
+      "error": {
+        "name": "Error"
+      },
+      "warning": {
+        "name": "Warning"
+      },
+      "prompt": {
+        "name": "Last message"
+      },
+      "clean_area": {
+        "name": "Cleaning area"
+      },
+      "clean_minutes": {
+        "name": "Cleaning time"
+      },
+      "total_area": {
+        "name": "Total cleaning area"
+      },
+      "total_hours": {
+        "name": "Total cleaning time"
+      },
+      "total_count": {
+        "name": "Total cleanings"
+      },
+      "firmware": {
+        "name": "Firmware"
+      },
+      "ip": {
+        "name": "IP address"
+      },
+      "wifi_signal": {
+        "name": "Wi-Fi signal"
+      },
+      "side_brush_left": {
+        "name": "Side brush remaining"
+      },
+      "side_brush_hours": {
+        "name": "Side brush hours used"
+      },
+      "rolling_brush_left": {
+        "name": "Rolling brush remaining"
+      },
+      "rolling_brush_hours": {
+        "name": "Rolling brush hours used"
+      },
+      "filter_mesh_left": {
+        "name": "Filter remaining"
+      },
+      "filter_mesh_hours": {
+        "name": "Filter hours used"
+      },
+      "dustbag_left": {
+        "name": "Dust bag remaining"
+      },
+      "dustbag_hours": {
+        "name": "Dust bag hours used"
+      },
+      "station_status": {
+        "name": "Station"
+      }
+    },
+    "switch": {
+      "boost_iq": {
+        "name": "BoostIQ"
+      },
+      "auto_return": {
+        "name": "Resume after recharge"
+      },
+      "child_lock": {
+        "name": "Child lock"
+      },
+      "dnd": {
+        "name": "Do not disturb"
+      },
+      "auto_empty": {
+        "name": "Auto-empty"
+      },
+      "auto_cut_hair": {
+        "name": "Auto hair cutting"
+      },
+      "room_custom": {
+        "name": "Per-room settings"
+      }
+    },
+    "select": {
+      "clean_times": {
+        "name": "Cleaning passes"
+      },
+      "water_level": {
+        "name": "Mop water level"
+      },
+      "clean_type": {
+        "name": "Cleaning type"
+      },
+      "auto_empty_every": {
+        "name": "Auto-empty every N cleanings"
+      },
+      "room_suction": {
+        "name": "{room} suction"
+      },
+      "room_clean_times": {
+        "name": "{room} passes"
+      },
+      "room_water_level": {
+        "name": "{room} mop water level"
+      }
+    },
+    "number": {
+      "volume": {
+        "name": "Volume"
+      }
+    },
+    "time": {
+      "dnd_start": {
+        "name": "Do not disturb start"
+      },
+      "dnd_end": {
+        "name": "Do not disturb end"
+      }
+    },
+    "button": {
+      "reset_side_brush": {
+        "name": "Reset side brush"
+      },
+      "reset_rolling_brush": {
+        "name": "Reset rolling brush"
+      },
+      "reset_filter_mesh": {
+        "name": "Reset filter"
+      },
+      "reset_dustbag": {
+        "name": "Reset dust bag"
+      },
+      "empty_dust": {
+        "name": "Empty dust"
+      },
+      "cut_hair": {
+        "name": "Cut hair from brush"
+      },
+      "refresh_map": {
+        "name": "Refresh map"
+      },
+      "clean_room": {
+        "name": "Clean {room}"
+      }
+    },
+    "image": {
+      "map": {
+        "name": "Map"
+      }
+    },
+    "camera": {
+      "live_map": {
+        "name": "Live map"
+      }
+    },
+    "event": {
+      "alert": {
+        "name": "Alert",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "error": "Error",
+              "warning": "Warning",
+              "message": "Message"
+            }
+          }
+        }
+      }
+    },
+    "binary_sensor": {
+      "problem": {
+        "name": "Problem"
+      }
+    }
+  }
+}

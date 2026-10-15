@@ -1,0 +1,76 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class VersionRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+enum Global {
+    NONE = 0;
+    PROTO_VERSION = 1;
+}
+
+message ProtoInfo {
+    enum CollectDustOptionBit {
+        COLLECT_DUST_APP_START = 0;
+        COLLECT_DUST_AUTO_MODE = 1;  // iOS-only
+        COLLECT_DUST_FREQ_LEVEL = 2;  // iOS-only
+    }
+    enum MapFormatOptionBit {
+        MAP_FORMAT_ANGLE = 0;
+        MAP_FORMAT_RESERVE_MAP = 1;
+        MAP_FORMAT_DEFAULT_NAME = 2;
+        MAP_FORMAT_BEDROOM_AND_DRESSING_ROOM = 3;  // iOS-only
+    }
+    enum ContinueCleanOptionBit {
+        SMART_CONTINUE_CLEAN = 0;
+    }
+    enum TimingOptionBit {
+        SCHEDULE_ROOMS_CLEAN_CUSTOM = 0;
+        SCHEDULE_SCENE_CLEAN = 1;
+    }
+    enum MapOptionBit {  // iOS-only: not in public Android protos
+        MAP_EDIT_REVERT = 0;
+    }
+    enum DebugOptionBit {  // iOS-only: not in public Android protos
+        ERROR_IMAGE_BACK = 0;
+        ANALYSIS_SWITCH = 1;
+    }
+    enum SettingOptionBit {  // iOS-only: not in public Android protos
+        DISABLE_LIVE_PHOTO = 0;
+        MULTI_ROOMS_RENAME = 1;
+        SUPPORT_MATTER = 2;
+        SUPPORT_SELF_CHECK_CMD = 3;
+        FURNITURE_EDIT = 4;
+        CARPET_EDIT = 5;
+    }
+    message Module {
+        uint32 version = 1;
+        uint32 options = 2;
+    }
+    uint32 global_verison = 1;
+    Module collect_dust = 2;
+    Module map_format = 3;
+    Module continue_clean = 4;
+    Module cut_hair = 5;
+    Module timing = 6;
+    Module map = 7;  // iOS-only
+    Module debug = 8;  // iOS-only
+    Module dry = 9;  // iOS-only
+    Module setting = 10;  // iOS-only
+}
+
+message AppFunction {
+    enum MultiMapsFunctionBit {
+        REMIND_MAP_SAVE = 0;
+    }
+    enum OptimizationFunctionBit {
+        PATH_HIDE_TYPE = 0;
+        PATH_USE_PROTOBUF = 1;  // iOS-only
+    }
+    message Module {
+        uint32 version = 1;
+        uint32 options = 2;
+    }
+    Module multi_maps = 2;
+    Module optimization = 3;
+}

@@ -1,0 +1,47 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class AppDeviceInfoRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+import "proto/cloud/version.proto";
+
+message AppInfo {
+    enum Platform {
+        PF_OTHER = 0;
+        PF_ANDROID = 1;
+        PF_IOS = 2;
+        PF_CLOUD = 3;
+    }
+    enum DataCenter {
+        EU = 0;
+        AZ = 1;
+        AY = 2;
+    }
+    Platform platform = 1;
+    string app_version = 2;
+    string family_id = 3;
+    string user_id = 4;
+    DataCenter data_center = 5;
+    AppFunction app_function = 6;
+    string time_zone_id = 7;
+}
+
+message DeviceInfo {
+    message Station {
+        string software = 1;
+        uint32 hardware = 2;
+        string pdc_version = 3;  // iOS-only
+    }
+    string product_name = 1;
+    string video_sn = 2;
+    string device_mac = 3;
+    string software = 4;
+    uint32 hardware = 5;
+    string wifi_name = 6;
+    string wifi_ip = 7;
+    string last_user_id = 8;
+    Station station = 11;
+    ProtoInfo proto_info = 12;
+    string device_type = 13;  // iOS-only
+}

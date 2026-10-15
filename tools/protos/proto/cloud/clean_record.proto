@@ -1,0 +1,94 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class CleanRecordRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+import "proto/cloud/clean_param.proto";
+import "proto/cloud/p2pdata.proto";
+import "proto/cloud/stream.proto";
+
+message CleanRecordDesc {
+    enum FinishReason {
+        COMPLETED = 0;
+        MANUDAL = 1;
+        LOW_POWER = 2;
+        EXCEPTION = 3;
+    }
+    message Extra {
+        enum Mode {
+            AUTO = 0;
+            SELECT_ROOM = 1;
+            SELECT_ZONE = 2;
+            SPOT = 3;
+            SCHEDULE_AUTO_CLEAN = 4;
+            SCHEDULE_ROOMS_CLEAN = 5;
+            SCENE = 6;  // iOS-only
+        }
+        Mode mode = 1;
+        uint32 mus = 2;
+        uint32 error_code = 3;
+        uint32 prompt_code = 4;
+        uint32 side_brush_extend_count = 9;  // iOS-only
+        uint32 key_stain_clean_count = 10;  // iOS-only
+    }
+    uint64 start_time = 1;
+    uint64 end_time = 2;
+    uint32 duration = 3;
+    uint32 area = 4;
+    CleanType clean_type = 5;
+    FinishReason finish_reason = 6;
+    Extra extra = 7;
+}
+
+message CleanRecordData {
+    message PathData {
+        repeated stream.PathPoint points = 1;
+    }
+    stream.RestrictedZone restricted_zone = 1;
+    stream.TemporaryData temp_data = 2;
+    stream.RoomParams room_params = 3;
+    bytes path_data = 6;
+    stream.Map map = 10;
+    stream.RoomOutline room_outline = 11;
+    stream.ObstacleInfo obstacle_info = 12;
+    PathData path_data_v2 = 13;
+    p2p.CompleteMap map_p2p = 20;
+    p2p.CompletePath path_p2p = 21;
+}
+
+message CruiseRecordDesc {
+    enum FinishReason {
+        COMPLETED = 0;
+        MANUDAL = 1;
+        LOW_POWER = 2;
+        EXCEPTION = 3;
+    }
+    message Extra {
+        enum Mode {
+            GLOBAL_CRUISE = 0;
+            POINT_CRUISE = 1;
+            ZONES_CRUISE = 2;
+            SCHEDULE_CRUISE = 3;
+        }
+        Mode mode = 1;
+    }
+    uint64 start_time = 1;
+    uint64 end_time = 2;
+    uint32 duration = 3;
+    FinishReason finish_reason = 4;
+    Extra extra = 7;
+}
+
+message CruiseRecordData {
+    stream.RestrictedZone restricted_zone = 1;
+    stream.TemporaryData temp_data = 2;
+    stream.RoomParams room_params = 3;
+    stream.ObstacleInfo obstacle_info = 4;
+    bytes path_data = 5;
+    stream.CruiseData cruise_data = 6;
+    stream.Map map = 7;
+    stream.RoomOutline room_outline = 8;
+    p2p.CompleteMap map_p2p = 20;
+    p2p.CompletePath path_p2p = 21;
+}

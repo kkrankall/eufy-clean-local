@@ -1,0 +1,58 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class ConsumableRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+message ConsumableRequest {
+    enum Type {
+        SIDE_BRUSH = 0;
+        ROLLING_BRUSH = 1;
+        FILTER_MESH = 2;
+        SCRAPE = 3;
+        SENSOR = 4;
+        MOP = 5;
+        DUSTBAG = 6;
+        DIRTY_WATERTANK = 7;
+        DIRTY_WATERFILTER = 8;
+        ROB_DIRTY_WATER_BASIN = 9;  // iOS-only
+        STA_FILTER_TRAY = 10;  // iOS-only
+        DIRTY_WATER_RESERVOIR_FILTER = 11;  // iOS-only
+        DIRTY_WATER_RESERVOIR = 12;  // iOS-only
+        FABRIC_BRUSH = 13;  // iOS-only
+        STATION_WATER_FILTER = 14;  // iOS-only
+        SWIVEL_WHEEL = 15;  // iOS-only
+    }
+    repeated Type reset_types = 1;
+}
+
+message ConsumableRuntime {
+    message Duration {
+        uint32 duration = 1;
+    }
+    message Count {  // iOS-only: not in public Android protos
+        uint32 count = 1;
+    }
+    Duration side_brush = 1;
+    Duration rolling_brush = 2;
+    Duration filter_mesh = 3;
+    Duration scrape = 4;
+    Duration sensor = 5;
+    Duration mop = 6;
+    Duration dustbag = 7;
+    Duration dirty_watertank = 10;
+    Duration dirty_waterfilter = 11;
+    Duration rob_dirty_water_basin = 12;  // iOS-only
+    Duration sta_filter_tray = 13;  // iOS-only
+    Count dust_collection = 14;  // iOS-only
+    Duration DirtyWaterReservoirFilter = 15;  // iOS-only
+    Duration DirtyWaterReservoir = 16;  // iOS-only
+    Duration FabricBrush = 17;  // iOS-only
+    Duration station_water_filter = 18;  // iOS-only; name not recorded in binary (text-format info missing), derived from ObjC name
+    Duration swivel_wheel = 19;  // iOS-only; name not recorded in binary (text-format info missing), derived from ObjC name
+    uint64 last_time = 20;
+}
+
+message ConsumableResponse {
+    ConsumableRuntime runtime = 1;
+}

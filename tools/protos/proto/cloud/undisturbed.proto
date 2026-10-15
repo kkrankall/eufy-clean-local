@@ -1,0 +1,26 @@
+// Recovered from CleanWidgetProtobuf.framework (eufy iOS 6.0.11), ObjC root class UndisturbedRoot.
+// Package source: binary.  objc_class_prefix: "".
+syntax = "proto3";
+
+package proto.cloud;
+
+import "proto/cloud/common.proto";
+
+message Undisturbed {
+    message TimePoint {
+        uint32 hour = 1;
+        uint32 minute = 2;
+    }
+    Switch sw = 1;
+    TimePoint begin = 2;
+    TimePoint end = 3;
+}
+
+message UndisturbedRequest {
+    Undisturbed undisturbed = 1;
+}
+
+message UndisturbedResponse {
+    Active active = 1;
+    Undisturbed undisturbed = 2;
+}
