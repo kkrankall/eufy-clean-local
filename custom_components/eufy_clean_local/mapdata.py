@@ -63,6 +63,7 @@ DOCK = (0x4C, 0xA2, 0xFF)
 ROBOT = (0x00, 0x5D, 0x8E)
 HIGHLIGHT = (0x1E, 0x88, 0xE5)  # rooms being cleaned on the live map
 PATH = (0x4A, 0x68, 0x9C)  # the cleaned path; darker than the app's white so it shows on pastel rooms
+PATH_WIDTH = 4  # px on the SCALE-enlarged map
 LABEL = (0x3A, 0x3F, 0x4D, 255)
 SCALE = 3
 ROBOT_ICON_PX = 26  # drawn size of the robot icon on the map
@@ -408,14 +409,19 @@ class MapRenderer:
     def frame(self, pose: tuple[float, float] | None = None, path: list | None = None,
               fast: bool = False, rooms: tuple[int, ...] = ()) -> bytes:
         """One PNG: the cached floor plan plus the rooms being cleaned, path, room names, dock and robot."""
-        from PIL import ImageDraw, ImageFont
+        from PIL import Image, ImageDraw, ImageFont
 
         img = self.base.copy()
         if rooms and self.room_px is not None:
             img.alpha_composite(self.highlight(tuple(sorted(rooms))))
-        draw = ImageDraw.Draw(img)
         if path and len(path) > 1:
-            draw.line([self.to_px(x, y) for x, y in path], fill=PATH + (150,), width=2, joint="curve")
+            # Drawn on its own layer and blended, so overlaps stay one even tint and the
+            # dashboard's background never shows through the line.
+            trail = Image.new("RGBA", img.size, (0, 0, 0, 0))
+            ImageDraw.Draw(trail).line([self.to_px(x, y) for x, y in path], fill=PATH + (210,),
+                                       width=PATH_WIDTH, joint="curve")
+            img.alpha_composite(trail)
+        draw = ImageDraw.Draw(img)
         if self.labels:
             try:
                 font = ImageFont.load_default(size=13)

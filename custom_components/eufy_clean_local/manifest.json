@@ -9,5 +9,5 @@
   "issue_tracker": "https://github.com/kkrankall/eufy-clean-local/issues",
   "loggers": ["tinytuya"],
   "requirements": ["tinytuya>=1.17.0", "protobuf>=4.21.0"],
-  "version": "0.2.0"
+  "version": "0.2.1"
 }

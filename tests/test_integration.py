@@ -446,9 +446,22 @@ def test_path_records_decode() -> None:
     assert mapdata.decode_path(b"") == [] and mapdata.decode_path(None) == []
 
     snap = synthetic_snapshot()
-    snap.raw[mapdata.CH_PATH] = b"".join(record(x, 0) for x in range(-80, 80, 10))
+    snap.raw[mapdata.CH_PATH] = b"".join(record(x, -40) for x in range(-80, 80, 10))  # clear of the labels
     plain = synthetic_snapshot().render_png()
     assert snap.path() and snap.render_png() != plain  # the trail is drawn
+
+    import io
+
+    from PIL import Image
+
+    with_path = Image.open(io.BytesIO(snap.render_png())).convert("RGBA")
+    without = Image.open(io.BytesIO(plain)).convert("RGBA")
+    changed = [(x, y) for x in range(with_path.width) for y in range(with_path.height)
+               if with_path.getpixel((x, y)) != without.getpixel((x, y))]
+    # Blended over the map, so the dashboard's background never shows through the line.
+    assert all(with_path.getpixel(p)[3] >= without.getpixel(p)[3] for p in changed)
+    mid = sorted(changed)[len(changed) // 2][0]
+    assert sum(1 for x, _ in changed if x == mid) >= mapdata.PATH_WIDTH  # drawn PATH_WIDTH px thick
 
 
 def test_robot_icon_turns_with_the_heading() -> None:
