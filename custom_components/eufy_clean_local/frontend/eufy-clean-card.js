@@ -11,7 +11,7 @@
 // service worker).
 
 const DOMAIN = "eufy_clean_local";
-const VERSION = "0.3.0";
+const VERSION = "0.3.1";
 
 const ACTIVE = new Set(["cleaning", "returning"]);
 
@@ -429,8 +429,10 @@ class EufyCleanCard extends HTMLElement {
   }
 }
 
-if (!customElements.get("eufy-clean-card")) {
-  customElements.define("eufy-clean-card", EufyCleanCard);
+const register = () => {
+  // window.customElements, read now: Home Assistant replaces it when its app starts.
+  if (window.customElements.get("eufy-clean-card")) return;
+  window.customElements.define("eufy-clean-card", EufyCleanCard);
   window.customCards = window.customCards || [];
   window.customCards.push({
     type: "eufy-clean-card",
@@ -439,4 +441,15 @@ if (!customElements.get("eufy-clean-card")) {
     documentationURL: "https://github.com/kkrankall/eufy-clean-local",
   });
   console.info(`%c eufy-clean-card ${VERSION} `, "background:#005d8e;color:#fff;border-radius:3px");
-}
+};
+
+// Home Assistant loads this file from its start page, which can run it before the
+// app has swapped in its scoped custom element registry. A card defined in the
+// browser's own registry before that swap is invisible to dashboards ("Custom
+// element doesn't exist"). The app defines <home-assistant> right after the swap,
+// so wait for that (10 s at most, for pages without the app).
+const whenAppStarted = (done, waited = 0) => {
+  if (window.customElements.get("home-assistant") || waited >= 10000) done();
+  else setTimeout(() => whenAppStarted(done, waited + 50), 50);
+};
+whenAppStarted(register);
