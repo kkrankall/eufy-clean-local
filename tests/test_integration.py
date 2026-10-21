@@ -427,6 +427,34 @@ async def test_live_map_follows_the_robot_while_cleaning(hass: HomeAssistant, fa
     await hass.async_block_till_done()
 
 
+async def test_map_image_follows_live_frames(hass: HomeAssistant, fake_tuya) -> None:
+    """Each live frame becomes a new map image, which the dashboard loads as a plain picture (Safari-safe)."""
+    from homeassistant.components.image import DATA_COMPONENT as IMAGE
+    from homeassistant.helpers.dispatcher import async_dispatcher_send
+
+    entry = MockConfigEntry(domain=DOMAIN, data=entry_data(cloud=True), unique_id="bf0123456789abcdefxyzw",
+                            title="L60", options={"live_interval": 2, "map_interval": 120})
+    entry.add_to_hass(hass)
+    with patch("custom_components.eufy_clean_local.mapdata.fetch_snapshot",
+               return_value=mapdata.FetchResult(snapshot=synthetic_snapshot())), \
+         patch("custom_components.eufy_clean_local.eufy_cloud.EufyCloud.device_dps", return_value={}):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        coordinator = entry.runtime_data
+        image = hass.data[IMAGE].get_entity("image.l60_map")
+        before = hass.states.get("image.l60_map").state
+
+        coordinator.live_png = b"\x89PNG new frame"
+        await asyncio.sleep(0.01)  # a later timestamp than the last update
+        async_dispatcher_send(hass, coordinator.live_signal)
+        await hass.async_block_till_done()
+        assert hass.states.get("image.l60_map").state != before  # the dashboard's picture URL changes
+        assert await image.async_image() == b"\x89PNG new frame"
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+
+
 async def test_live_map_stream_keeps_sending_while_docked(hass: HomeAssistant, fake_tuya, hass_client) -> None:
     """The live stream resends an unchanged frame, so Safari and the iOS app don't time it out."""
     from homeassistant.components.camera import DATA_COMPONENT as CAMERA

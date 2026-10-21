@@ -36,10 +36,10 @@ Home Assistant's log shows.
   during and after each clean, and on the Refresh map button. The robot uploads
   its map to the cloud while it cleans, so a robot that has never cleaned since
   setup has no map yet.
-- **Live map:** a camera entity that follows the robot while it cleans, moving
-  the robot and extending its cleaned path every 3 seconds (2-10 s, or off, in
-  the options). Nothing is read from the cloud while the robot is docked, and
-  since it's a camera, the live frames don't fill the recorder.
+- **Live map:** while the robot cleans, the map image moves the robot and
+  extends its cleaned path every 3 seconds (2-10 s, or off, in the options).
+  Nothing is read from the cloud while the robot is docked. The same view is
+  also a camera entity, for cards that want a camera stream.
 - **Sensors:** battery, detailed status, errors and warnings (with eufy's text),
   last message, current and total cleaning area and time, cleanings, consumable
   life (side brush, rolling brush, filter, dust bag on SES), firmware, Wi-Fi.
@@ -88,22 +88,26 @@ colours, room names come from the eufy app, the blue square is the dock, the
 robot icon turns to face the way the robot is heading, and the thin blue line is where it has cleaned. No-go zones
 are red boxes, and virtual walls are red lines.
 
-To watch the robot move, show `camera.<name>_live_map` on a dashboard, for
-example a picture-entity card with live view:
+To watch the robot move, show the map image on a dashboard, for example with a
+picture-entity card:
 
 ```yaml
 type: picture-entity
-entity: camera.l60_live_map
-camera_view: live
+entity: image.l60_map
+show_name: false
 show_state: false
 ```
 
 During a room clean, the rooms being cleaned are highlighted on the live map.
 
-The [vacuum-card](https://github.com/denysdovhan/vacuum-card) can show it with
-`map: camera.l60_live_map`, but it only refreshes the image if the camera already
-exists when the card first draws, so the picture-entity card above is the
-reliable choice.
+The camera `camera.<name>_live_map` shows the same view as a stream
+(`camera_view: live`), which keeps the per-frame updates out of the recorder.
+It works in Chrome and Edge, but not in Safari: Home Assistant's service worker
+breaks endless camera streams there, and the picture turns into a broken image
+within a minute or so. The image entity works in every browser. The
+[vacuum-card](https://github.com/denysdovhan/vacuum-card)'s `map:` option only
+refreshes the picture if the map entity already exists when the card first
+draws, so the picture-entity card is the reliable choice.
 
 ### Notifications
 

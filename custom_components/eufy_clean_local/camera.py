@@ -1,8 +1,9 @@
 """A live view of the map: the robot (and its cleaned path) redrawn every few seconds while it cleans.
 
-A camera rather than an image entity: the dashboard pulls frames itself and the
-camera's state never changes per frame, so following the robot adds nothing to
-the recorder.
+As a camera, the dashboard pulls frames itself and the camera's state never
+changes per frame, so following the robot adds nothing to the recorder. Safari
+can't show the camera's endless stream through Home Assistant's service worker,
+so the map image entity follows the robot too (see image.py).
 """
 
 from __future__ import annotations
