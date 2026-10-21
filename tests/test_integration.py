@@ -468,6 +468,44 @@ async def test_live_map_stream_keeps_sending_while_docked(hass: HomeAssistant, f
     await hass.async_block_till_done()
 
 
+async def test_live_map_stream_ends_when_its_token_is_replaced(hass: HomeAssistant, fake_tuya,
+                                                               hass_client_no_auth) -> None:
+    """A stream opened with a token ends once the token rotates, so Safari can't pile up leaked streams."""
+    from homeassistant.components.camera import DATA_COMPONENT as CAMERA
+
+    entry = MockConfigEntry(domain=DOMAIN, data=entry_data(cloud=True), unique_id="bf0123456789abcdefxyzw",
+                            title="L60", options={"live_interval": 2, "map_interval": 120})
+    entry.add_to_hass(hass)
+    with patch("custom_components.eufy_clean_local.mapdata.fetch_snapshot",
+               return_value=mapdata.FetchResult(snapshot=synthetic_snapshot())), \
+         patch("custom_components.eufy_clean_local.eufy_cloud.EufyCloud.device_dps", return_value={}):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        coordinator = entry.runtime_data
+        for _ in range(100):
+            if coordinator.live_png or coordinator.map_png:
+                break
+            await asyncio.sleep(0.02)
+        camera = hass.data[CAMERA].get_entity("camera.l60_live_map")
+        camera._attr_frame_interval = 0.05
+
+        client = await hass_client_no_auth()
+        token = camera.access_tokens[-1]
+        response = await client.get(f"/api/camera_proxy_stream/camera.l60_live_map?token={token}")
+        assert response.status == 200
+        assert b"--frameboundary" in await asyncio.wait_for(response.content.readany(), 1)
+        await asyncio.sleep(0.2)
+        assert not response.content.at_eof()  # still streaming while its token is current
+
+        camera.async_update_token()  # what Home Assistant does every 5 minutes
+        await asyncio.wait_for(response.content.read(), 1)  # the server ends the stream
+        assert response.content.at_eof()
+        response.close()
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+
+
 _real_sleep = asyncio.sleep
 
 

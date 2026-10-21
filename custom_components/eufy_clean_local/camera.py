@@ -20,8 +20,8 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from . import EufyConfigEntry
 from .entity import EufyEntity
 
-# Longest gap between frames in the live stream. Safari and the Home Assistant
-# iOS/macOS apps fail an image whose stream sends nothing for about 60 s.
+# Longest gap between frames in the live stream. Safari (and anything else built
+# on WebKit) fails an image whose stream sends nothing for about 60 s.
 KEEPALIVE = 20.0
 BOUNDARY = "--frameboundary"
 
@@ -60,12 +60,20 @@ class EufyLiveMap(EufyEntity, Camera):
         picture changes, so a docked robot leaves it silent and WebKit shows a
         broken image a minute later. Browsers also show a stream's frames one
         behind, so the resend is what puts the newest frame on screen.
+
+        A stream opened with an access token that has since been replaced ends:
+        the dashboard opens a new stream when the token rotates (every 5
+        minutes), but Safari never closes the old one, and after six such
+        leaked connections to the same host it cannot load the map at all.
         """
+        token = request.query.get("token")
         response = web.StreamResponse()
         response.content_type = CONTENT_TYPE_MULTIPART.format(BOUNDARY)
         await response.prepare(request)
         last, sent_at = None, 0.0
         while True:
+            if token is not None and last is not None and token != self.access_tokens[-1]:
+                break  # the dashboard has moved on to a stream with the new token
             image = await self.async_camera_image()
             if not image:
                 break
