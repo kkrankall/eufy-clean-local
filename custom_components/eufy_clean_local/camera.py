@@ -8,6 +8,7 @@ the recorder.
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 
 from aiohttp import web
@@ -19,6 +20,8 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import EufyConfigEntry
 from .entity import EufyEntity
+
+_LOGGER = logging.getLogger(__name__)
 
 # Longest gap between frames in the live stream. Safari (and anything else built
 # on WebKit) fails an image whose stream sends nothing for about 60 s.
@@ -40,6 +43,8 @@ class EufyLiveMap(EufyEntity, Camera):
         EufyEntity.__init__(self, coordinator, "live_map")
         Camera.__init__(self)
         self.content_type = "image/png"
+        # Each viewer's current live stream: (address, browser) -> its stop signal.
+        self._streams: dict[tuple[str | None, str], asyncio.Event] = {}
         self._attr_frame_interval = max(coordinator.live_interval, 1) if coordinator.live_interval else 10
 
     @property
@@ -61,28 +66,53 @@ class EufyLiveMap(EufyEntity, Camera):
         broken image a minute later. Browsers also show a stream's frames one
         behind, so the resend is what puts the newest frame on screen.
 
-        A stream opened with an access token that has since been replaced ends:
-        the dashboard opens a new stream when the token rotates (every 5
-        minutes), but Safari never closes the old one, and after six such
-        leaked connections to the same host it cannot load the map at all.
+        Each viewer keeps only its newest stream. The dashboard opens a new one
+        whenever the camera's access token rotates (every 5 minutes) and whenever
+        the card is rebuilt (switching views, resizing the window), and Safari
+        never closes the one it replaces. With Nabu Casa's HTTP/1.1, six leaked
+        streams leave Safari no connection for the map at all. So a new stream
+        from the same address and browser ends the previous one, and so does a
+        rotated token.
         """
         token = request.query.get("token")
+        viewer = (request.remote, request.headers.get("User-Agent", ""))
+        stop = asyncio.Event()
+        if (previous := self._streams.get(viewer)) is not None:
+            previous.set()
+        self._streams[viewer] = stop
+        _LOGGER.debug("Live map stream opened for %s (%d open)", viewer[0], len(self._streams))
+
         response = web.StreamResponse()
         response.content_type = CONTENT_TYPE_MULTIPART.format(BOUNDARY)
         await response.prepare(request)
-        last, sent_at = None, 0.0
-        while True:
-            if token is not None and last is not None and token != self.access_tokens[-1]:
-                break  # the dashboard has moved on to a stream with the new token
-            image = await self.async_camera_image()
-            if not image:
-                break
-            if image != last or time.monotonic() - sent_at >= KEEPALIVE:
-                part = (f"{BOUNDARY}\r\nContent-Type: {self.content_type}\r\n"
-                        f"Content-Length: {len(image)}\r\n\r\n").encode() + image + b"\r\n"
-                await response.write(part)
-                if last is None:
-                    await response.write(part)  # the first frame twice, so it shows straight away
-                last, sent_at = image, time.monotonic()
-            await asyncio.sleep(self.frame_interval)
+        last, sent_at, reason = None, 0.0, "no picture"
+        try:
+            while True:
+                if stop.is_set():
+                    reason = "replaced by a newer stream"
+                    break
+                if token is not None and last is not None and token != self.access_tokens[-1]:
+                    reason = "token rotated"
+                    break
+                image = await self.async_camera_image()
+                if not image:
+                    break
+                if image != last or time.monotonic() - sent_at >= KEEPALIVE:
+                    part = (f"{BOUNDARY}\r\nContent-Type: {self.content_type}\r\n"
+                            f"Content-Length: {len(image)}\r\n\r\n").encode() + image + b"\r\n"
+                    await response.write(part)
+                    if last is None:
+                        await response.write(part)  # the first frame twice, so it shows straight away
+                    last, sent_at = image, time.monotonic()
+                try:
+                    await asyncio.wait_for(stop.wait(), self.frame_interval)
+                except TimeoutError:
+                    pass
+        except (ConnectionResetError, asyncio.CancelledError):
+            reason = "viewer went away"
+            raise
+        finally:
+            if self._streams.get(viewer) is stop:
+                del self._streams[viewer]
+            _LOGGER.debug("Live map stream for %s ended: %s", viewer[0], reason)
         return response

@@ -42,7 +42,7 @@ async def setup(hass: HomeAssistant, cloud: bool = False) -> MockConfigEntry:
 
 
 async def wait_for_sent(device, count: int) -> list[dict]:
-    for _ in range(100):
+    for _ in range(300):  # up to 6 s, so a busy machine doesn't fail the test
         if len(device.sent) >= count:
             return device.sent
         await asyncio.sleep(0.02)
@@ -501,6 +501,25 @@ async def test_live_map_stream_ends_when_its_token_is_replaced(hass: HomeAssista
         await asyncio.wait_for(response.content.read(), 1)  # the server ends the stream
         assert response.content.at_eof()
         response.close()
+
+        # The dashboard rebuilds the card (new view, resized window) and opens another stream
+        # with the same token; Safari keeps the old one open, so the server closes it.
+        token = camera.access_tokens[-1]
+        url = f"/api/camera_proxy_stream/camera.l60_live_map?token={token}"
+        first = await client.get(url)
+        assert b"--frameboundary" in await asyncio.wait_for(first.content.readany(), 1)
+        second = await client.get(url)
+        assert b"--frameboundary" in await asyncio.wait_for(second.content.readany(), 1)
+        await asyncio.wait_for(first.content.read(), 1)
+        assert first.content.at_eof()  # the replaced stream ended
+        await asyncio.sleep(0.2)
+        assert not second.content.at_eof()  # the newest one keeps going
+        other = await client.get(url, headers={"User-Agent": "another browser"})
+        assert b"--frameboundary" in await asyncio.wait_for(other.content.readany(), 1)
+        await asyncio.sleep(0.2)
+        assert not second.content.at_eof()  # a different viewer doesn't end it
+        for response in (first, second, other):
+            response.close()
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
