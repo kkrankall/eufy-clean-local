@@ -427,6 +427,47 @@ async def test_live_map_follows_the_robot_while_cleaning(hass: HomeAssistant, fa
     await hass.async_block_till_done()
 
 
+async def test_live_map_stream_keeps_sending_while_docked(hass: HomeAssistant, fake_tuya, hass_client) -> None:
+    """The live stream resends an unchanged frame, so Safari and the iOS app don't time it out."""
+    from homeassistant.components.camera import DATA_COMPONENT as CAMERA
+
+    from custom_components.eufy_clean_local import camera
+
+    entry = MockConfigEntry(domain=DOMAIN, data=entry_data(cloud=True), unique_id="bf0123456789abcdefxyzw",
+                            title="L60", options={"live_interval": 2, "map_interval": 120})
+    entry.add_to_hass(hass)
+    with patch("custom_components.eufy_clean_local.mapdata.fetch_snapshot",
+               return_value=mapdata.FetchResult(snapshot=synthetic_snapshot())), \
+         patch("custom_components.eufy_clean_local.eufy_cloud.EufyCloud.device_dps", return_value={}), \
+         patch.object(camera, "KEEPALIVE", 0.2):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        coordinator = entry.runtime_data
+        for _ in range(100):
+            if coordinator.live_png or coordinator.map_png:
+                break
+            await asyncio.sleep(0.02)
+        hass.data[CAMERA].get_entity("camera.l60_live_map")._attr_frame_interval = 0.05
+
+        client = await hass_client()
+        response = await client.get("/api/camera_proxy_stream/camera.l60_live_map")
+        assert response.status == 200
+        assert response.headers["Content-Type"].startswith("multipart/x-mixed-replace")
+        data = b""
+        end = asyncio.get_running_loop().time() + 1.0
+        while asyncio.get_running_loop().time() < end:
+            try:
+                data += await asyncio.wait_for(response.content.readany(), 0.3)
+            except TimeoutError:
+                pass
+        response.close()
+        # The docked robot's picture never changes: two copies up front, then a resend every KEEPALIVE.
+        assert data.count(b"--frameboundary\r\nContent-Type: image/png\r\n") >= 5
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+
+
 _real_sleep = asyncio.sleep
 
 
