@@ -24,6 +24,10 @@ Home Assistant's log shows.
 
 ## What you get
 
+- **Dashboard card:** `custom:eufy-clean-card` shows the live map, lets you
+  tap rooms to clean just those, and has the controls, suction, passes,
+  BoostIQ, the station's Empty dust and the consumables in one card. It comes
+  with the integration (see [The dashboard card](#the-dashboard-card)).
 - **Vacuum:** start, pause and resume, stop, return to dock, spot clean, locate,
   suction (Quiet / Standard / Turbo / Max).
 - **Room cleaning:** each room appears as a vacuum *segment*, so you can map
@@ -109,7 +113,32 @@ within a minute or so. The image entity works in every browser. The
 refreshes the picture if the map entity already exists when the card first
 draws, so the picture-entity card is the reliable choice.
 
-### Notifications
+## The dashboard card
+
+<img src="docs/images/card.png" alt="The eufy Clean card with two rooms selected on the demo map" width="420">
+
+The integration ships its own card, and Home Assistant loads it automatically,
+so there's nothing to add under Resources. Add it from the card picker
+(*eufy Clean*) or in YAML:
+
+```yaml
+type: custom:eufy-clean-card
+entity: vacuum.l60
+```
+
+- **Map:** the live map image. Tap rooms on it, or on the room chips below, then
+  **Clean N rooms** cleans just those, with the passes you've set.
+- **Controls:** Clean everywhere, Pause / Resume, Stop, Dock and Find, depending
+  on what the robot is doing.
+- **Settings:** suction, passes, BoostIQ and, with a self-empty station, Empty dust.
+- **Status:** battery, an error or warning banner, the consumables (amber at 20%,
+  red at 10%) and the last clean's time and area. Tap the header or a
+  consumable for its details.
+
+The card finds the robot's other entities itself, so `entity` is the only
+option (plus an optional `title`). It works in every browser, Safari included.
+
+## Notifications
 
 ```yaml
 triggers:

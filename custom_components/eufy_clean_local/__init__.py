@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.typing import ConfigType
+from homeassistant.loader import async_get_integration
 
+from .const import DOMAIN
 from .coordinator import EufyCoordinator
 
 PLATFORMS = [
@@ -27,6 +32,23 @@ PLATFORMS = [
 type EufyConfigEntry = ConfigEntry[EufyCoordinator]
 
 FIRST_DATA_TIMEOUT = 15
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+CARD_URL = f"/{DOMAIN}/eufy-clean-card.js"
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Serve the dashboard card and have every dashboard load it (custom:eufy-clean-card)."""
+    if getattr(hass, "http", None) is None or "frontend" not in hass.config.components:
+        return True  # no web interface (tests)
+    from homeassistant.components.frontend import add_extra_js_url
+    from homeassistant.components.http import StaticPathConfig
+
+    version = (await async_get_integration(hass, DOMAIN)).version
+    card = Path(__file__).parent / "frontend" / "eufy-clean-card.js"
+    await hass.http.async_register_static_paths([StaticPathConfig(CARD_URL, str(card), True)])
+    add_extra_js_url(hass, f"{CARD_URL}?v={version}")  # the version makes browsers fetch each release
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: EufyConfigEntry) -> bool:

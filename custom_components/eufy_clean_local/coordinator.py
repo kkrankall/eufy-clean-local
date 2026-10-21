@@ -236,6 +236,15 @@ class EufyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return self._map_rooms or self.manual_rooms
 
     @property
+    def room_shapes(self) -> list[dict]:
+        """The rooms' outlines on the map picture (fractions of its size), for tapping rooms in the card."""
+        if self._renderer is None:
+            return []
+        names = {r["id"]: r["name"] for r in self.rooms}
+        return [{"id": room_id, "name": names.get(room_id, f"Room {room_id}"), "points": points}
+                for room_id, points in sorted(self._renderer.shapes.items())]
+
+    @property
     def hybrid(self) -> bool:
         return self.model in c.HYBRID_MODELS
 

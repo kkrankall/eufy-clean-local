@@ -444,6 +444,11 @@ async def test_map_image_follows_live_frames(hass: HomeAssistant, fake_tuya) -> 
         image = hass.data[IMAGE].get_entity("image.l60_map")
         before = hass.states.get("image.l60_map").state
 
+        # The rooms' outlines, as fractions of the picture, let the dashboard card tap rooms on the map.
+        shapes = hass.states.get("image.l60_map").attributes["room_shapes"]
+        assert {(s["id"], s["name"]) for s in shapes} == {(r["id"], r["name"]) for r in coordinator.rooms}
+        assert all(len(s["points"]) >= 3 and all(0 <= v <= 1 for p in s["points"] for v in p) for s in shapes)
+
         coordinator.live_png = b"\x89PNG new frame"
         await asyncio.sleep(0.01)  # a later timestamp than the last update
         async_dispatcher_send(hass, coordinator.live_signal)
@@ -588,6 +593,24 @@ def test_path_records_decode() -> None:
     assert all(with_path.getpixel(p)[3] >= without.getpixel(p)[3] for p in changed)
     mid = sorted(changed)[len(changed) // 2][0]
     assert sum(1 for x, _ in changed if x == mid) >= mapdata.PATH_WIDTH  # drawn PATH_WIDTH px thick
+
+
+def test_room_shapes_follow_the_crop_and_rotation() -> None:
+    """A room shape point lands where the frame actually draws that spot, whatever the map's angle."""
+    import io
+
+    from PIL import Image
+
+    grid = mapdata.Grid(40, 20, bytes(800), 0.0, 0.0, 5.0)
+    for angle in (0, 90, 180, 270):
+        base = Image.new("RGBA", (120, 60), (0, 0, 0, 0))
+        base.putpixel((10, 6), (255, 0, 0, 255))
+        renderer = mapdata.MapRenderer(base, grid, [], [], (4, 2, 110, 58), angle)
+        frame = Image.open(io.BytesIO(renderer.frame())).convert("RGBA")
+        x, y = next((x, y) for y in range(frame.height) for x in range(frame.width)
+                    if frame.getpixel((x, y)) == (255, 0, 0, 255))
+        fx, fy = renderer.view_point(10.5, 6.5)  # the pixel's centre
+        assert abs(fx * frame.width - (x + 0.5)) < 1 and abs(fy * frame.height - (y + 0.5)) < 1, angle
 
 
 def test_robot_icon_turns_with_the_heading() -> None:

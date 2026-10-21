@@ -67,6 +67,7 @@ PATH_WIDTH = 4  # px on the SCALE-enlarged map
 LABEL = (0x3A, 0x3F, 0x4D, 255)
 SCALE = 3
 ROBOT_ICON_PX = 26  # drawn size of the robot icon on the map
+SHAPE_POINTS = 64  # most points per room outline handed to the dashboard
 BUMPER = (0x4C, 0xA2, 0xFF)
 
 SCENE_NAMES = {
@@ -197,15 +198,8 @@ def map_grid(m) -> Grid | None:
     return Grid(w, h, cells, info.origin.x, info.origin.y, info.resolution or 5)
 
 
-def room_cells(outline, grid: Grid, legacy_ok: bool, room_ids: set[int]) -> bytes | None:
-    """One byte per grid cell holding its room id (0 = none)."""
-    from PIL import Image, ImageDraw
-
-    data, inflated = _unpack(outline.pixels, outline.pixel_size)
-    if not inflated:
-        if not legacy_ok or outline.width != grid.width or outline.height != grid.height:
-            return None
-        return bytes(v >> 2 for v in data[:grid.width * grid.height])
+def _room_outlines(data: bytes, room_ids: set[int]) -> dict[int, list[tuple[int, int]]]:
+    """Each room's traced boundary as (column, row) grid points, from an inflated RoomOutline."""
     count = struct.unpack_from("<I", data, 4)[0]
     pos, rooms = 8, []
     for _ in range(count):
@@ -215,12 +209,31 @@ def room_cells(outline, grid: Grid, legacy_ok: bool, room_ids: set[int]) -> byte
         pos += 12 * n
         rooms.append((label, pts))
     by_label = all(label - ROOM_LABEL_OFFSET in room_ids for label, _ in rooms) or not room_ids
-    img = Image.new("L", (grid.width, grid.height), 0)
-    draw = ImageDraw.Draw(img)
+    out = {}
     for index, (label, pts) in enumerate(rooms):
         room_id = label - ROOM_LABEL_OFFSET if by_label else sorted(room_ids)[index] if index < len(room_ids) else 0
         if len(pts) >= 3 and 0 < room_id < 256:
-            draw.polygon(pts, fill=room_id, outline=room_id)
+            out[room_id] = pts
+    return out
+
+
+def room_cells(outline, grid: Grid, legacy_ok: bool, room_ids: set[int],
+               polygons: dict | None = None) -> bytes | None:
+    """One byte per grid cell holding its room id (0 = none); `polygons` gets each room's outline."""
+    from PIL import Image, ImageDraw
+
+    data, inflated = _unpack(outline.pixels, outline.pixel_size)
+    if not inflated:
+        if not legacy_ok or outline.width != grid.width or outline.height != grid.height:
+            return None
+        return bytes(v >> 2 for v in data[:grid.width * grid.height])
+    outlines = _room_outlines(data, room_ids)
+    if polygons is not None:
+        polygons.update(outlines)
+    img = Image.new("L", (grid.width, grid.height), 0)
+    draw = ImageDraw.Draw(img)
+    for room_id, pts in outlines.items():
+        draw.polygon(pts, fill=room_id, outline=room_id)
     return img.tobytes()
 
 
@@ -315,6 +328,8 @@ class MapRenderer:
         self.labels = labels
         self.box = box
         self.angle = angle
+        # Each room's outline as fractions (0-1) of the finished frame, top-left origin.
+        self.shapes: dict[int, list[list[float]]] = {}
 
     def to_px(self, x: float, y: float) -> tuple[float, float]:
         g = self.grid
@@ -334,10 +349,12 @@ class MapRenderer:
         rooms = {r["id"]: r["name"] for r in snapshot.rooms()}
 
         room_px = None
+        outlines: dict[int, list[tuple[int, int]]] = {}
         outline = snapshot.get(CH_ROOM_OUTLINE)
         if outline is not None and outline.pixels and map_id_of(outline) == map_id_of(m):
             try:
-                room_px = room_cells(outline, grid, legacy_ok=not m.info.width or m.info.width == w, room_ids=set(rooms))
+                room_px = room_cells(outline, grid, legacy_ok=not m.info.width or m.info.width == w,
+                                     room_ids=set(rooms), polygons=outlines)
             except (struct.error, ValueError) as err:
                 _LOGGER.debug("Could not decode the room outline: %s", err)
 
@@ -345,6 +362,7 @@ class MapRenderer:
         img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
         put = img.load()
         sums: dict[int, list[int]] = {}
+        bounds: dict[int, list[int]] = {}
         for i, value in enumerate(grid.cells):
             if not value:
                 continue
@@ -361,6 +379,8 @@ class MapRenderer:
                 acc[0] += x
                 acc[1] += y
                 acc[2] += 1
+                b = bounds.setdefault(room_id, [x, y, x, y])
+                b[0], b[1], b[2], b[3] = min(b[0], x), min(b[1], y), max(b[2], x), max(b[3], y)
             if value == CARPET_CELL:
                 colour = CARPET if colour == FLOOR else tuple(int(a * 0.85) for a in colour[:3]) + (255,)
             put[x, y] = colour
@@ -385,7 +405,35 @@ class MapRenderer:
             pad = 6 * SCALE
             renderer.box = (max(box[0] - pad, 0), max(box[1] - pad, 0),
                             min(box[2] + pad, img.width), min(box[3] + pad, img.height))
+        renderer.shapes = renderer._room_shapes(outlines, bounds)
         return renderer
+
+    def view_point(self, x: float, y: float) -> tuple[float, float]:
+        """A point on the uncropped picture as a fraction (0-1) of the finished frame, top-left origin."""
+        left, top, right, bottom = self.box or (0, 0, self.base.width, self.base.height)
+        x, y, w, h = x - left, y - top, right - left, bottom - top
+        if self.angle == 90:  # frame() turns the picture clockwise by the map's angle
+            x, y, w, h = h - y, x, h, w
+        elif self.angle == 180:
+            x, y = w - x, h - y
+        elif self.angle == 270:
+            x, y, w, h = y, w - x, h, w
+        return x / w, y / h
+
+    def _room_shapes(self, outlines: dict, bounds: dict) -> dict[int, list[list[float]]]:
+        """Room outlines (or, without them, bounding boxes) in frame fractions, for tapping rooms on the map."""
+        g = self.grid
+        shapes = {}
+        for room_id, b in bounds.items():
+            pts = outlines.get(room_id)
+            if pts:
+                step = -(-len(pts) // SHAPE_POINTS)
+                corners = [((col + 0.5) * SCALE, (g.height - 1 - row + 0.5) * SCALE) for col, row in pts[::step]]
+            else:
+                x0, y0, x1, y1 = b[0] * SCALE, b[1] * SCALE, (b[2] + 1) * SCALE, (b[3] + 1) * SCALE
+                corners = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+            shapes[room_id] = [[round(v, 4) for v in self.view_point(x, y)] for x, y in corners]
+        return shapes
 
     def highlight(self, rooms: tuple[int, ...]):
         """A see-through overlay with an outline over the given rooms (cached per selection)."""

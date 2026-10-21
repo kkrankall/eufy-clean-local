@@ -30,6 +30,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: EufyConfigEntry,
 class EufyMapImage(EufyEntity, ImageEntity):
     _attr_content_type = "image/png"
     _attr_icon = "mdi:floor-plan"
+    _unrecorded_attributes = frozenset({"room_shapes"})
 
     def __init__(self, hass: HomeAssistant, coordinator) -> None:
         EufyEntity.__init__(self, coordinator, "map")
@@ -63,4 +64,8 @@ class EufyMapImage(EufyEntity, ImageEntity):
 
     @property
     def extra_state_attributes(self) -> dict:
-        return {"map_id": self.coordinator.map_id, "rooms": [r["name"] for r in self.coordinator.rooms]}
+        return {
+            "map_id": self.coordinator.map_id,
+            "rooms": [r["name"] for r in self.coordinator.rooms],
+            "room_shapes": self.coordinator.room_shapes,
+        }

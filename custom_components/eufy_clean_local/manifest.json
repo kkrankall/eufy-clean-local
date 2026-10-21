@@ -1,13 +1,24 @@
 {
   "domain": "eufy_clean_local",
   "name": "eufy Clean (Local)",
-  "codeowners": ["@kkrankall"],
+  "after_dependencies": [
+    "frontend",
+    "http"
+  ],
+  "codeowners": [
+    "@kkrankall"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/kkrankall/eufy-clean-local",
   "integration_type": "device",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/kkrankall/eufy-clean-local/issues",
-  "loggers": ["tinytuya"],
-  "requirements": ["tinytuya>=1.17.0", "protobuf>=4.21.0"],
-  "version": "0.2.5"
+  "loggers": [
+    "tinytuya"
+  ],
+  "requirements": [
+    "tinytuya>=1.17.0",
+    "protobuf>=4.21.0"
+  ],
+  "version": "0.3.0"
 }
