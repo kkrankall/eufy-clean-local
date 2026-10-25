@@ -151,7 +151,9 @@ it and remembers every floor:
   saved floors, so a floor appears the first time it starts cleaning there, named
   as in the eufy app, and stays from then on (across restarts too).
 - **Floor sensor:** `sensor.<name>_floor` is the floor the robot is on. It
-  changes once the robot starts cleaning on another floor.
+  changes once the robot starts cleaning on another floor, and back to the
+  dock's floor as soon as the robot is on its dock again. The dock's floor is
+  learned when the robot drives itself home (until then, the first floor seen).
 - **A map per floor:** with two or more floors, each gets its own picture,
   `image.<name>_<floor>_map`, showing its last map. `image.<name>_map` stays the
   live map of the floor the robot is on.

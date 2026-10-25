@@ -243,6 +243,10 @@ class EufyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # is learned the first time its map is uploaded, and kept from then on.
         self.floors: dict[int, dict] = {}
         self.primary_map_id: int | None = None  # the first floor; its rooms keep their original ids
+        # The floor the dock is on. The robot only shows its floor by uploading a map while it
+        # cleans, so when it's set back on the dock, this is how we know it's downstairs again.
+        self.station_floor: int | None = None
+        self._docked_after_clean = False
         self.floor_pngs: dict[int, bytes] = {}
         self.floor_shapes: dict[int, list[dict]] = {}
         self.floor_signal = f"{DOMAIN}_{self.device_id}_floors"
@@ -331,6 +335,7 @@ class EufyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "updated": dt_util.parse_datetime(floor["updated"]) if floor.get("updated") else None,
             }
         self.primary_map_id = stored.get("primary")
+        self.station_floor = stored.get("station")
         if stored.get("channels"):
             self.map.raw = {int(k): base64.b64decode(v) for k, v in stored["channels"].items()}
             self._map_rooms = stored.get("rooms") or self.map.rooms()
@@ -443,6 +448,7 @@ class EufyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     registry.async_update_device(device.id, sw_version=firmware)
             self._check_alerts(state)
             self.async_set_updated_data(state)
+            self._track_dock_floor(prev, self._prev_state)
             self._schedule_map_refresh(prev, self._prev_state)
         else:
             self.async_update_listeners()
@@ -544,6 +550,47 @@ class EufyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     # ------------------------------------------------------------ map
     @callback
+    @callback
+    def _track_dock_floor(self, prev: str | None, new: str | None) -> None:
+        """On docking, the robot is on the dock's floor: learn it after a clean, use it otherwise."""
+        if new != "docked" or prev == "docked" or self.cloud is None or self.legacy:
+            return
+        if prev == "returning":
+            # It drove itself home, so the dock is on the floor it just cleaned; the map
+            # refresh after docking confirms which one that is. (Paused, then lifted onto
+            # the dock, says nothing about where the dock is.)
+            self._docked_after_clean = True
+        elif len(self.floors) > 1:
+            self.config_entry.async_create_background_task(self.hass, self._async_dock_floor(), "eufy dock floor")
+
+    @property
+    def dock_floor(self) -> int | None:
+        """The dock's floor: learned when the robot docks after cleaning, else the first floor seen."""
+        return self.station_floor if self.station_floor in self.floors else self.primary_map_id
+
+    async def _async_dock_floor(self) -> None:
+        """Show the dock's floor (its saved map) while the robot sits on the dock."""
+        target = self.dock_floor
+        if target is None or target == self.map_id or target not in self.floors:
+            return
+        _LOGGER.info("Docked: showing %s", self.floors[target]["name"])
+        await self._async_use_floor(target)
+        self.map_id = target
+        self.map_updated = self.floors[target]["updated"]
+        self.map_png = await self.hass.async_add_executor_job(self._safe_render)
+        await self._async_rebuild_live()
+        await self._async_remember_floor(save=False)
+        await self._async_save()
+        self.async_update_listeners()
+
+    async def _async_use_floor(self, map_id: int) -> None:
+        """Make another floor the current one, keeping the one we leave."""
+        await self._async_remember_floor(save=False)
+        known = self.floors.get(map_id)
+        self.map = mapdata.MapSnapshot(raw=dict(known["raw"])) if known else mapdata.MapSnapshot()
+        self._map_rooms = list(known["rooms"]) if known else []
+        self._live_pose, self._live_path, self._live_rooms = None, [], ()
+
     def _schedule_map_refresh(self, prev: str | None, new: str | None) -> None:
         if self.cloud is None or self.legacy:
             return
@@ -582,13 +629,19 @@ class EufyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER.debug("The cloud holds no map data yet")
             return
         new_id = snapshot.map_id
+        if self._docked_after_clean:
+            self._docked_after_clean = False
+            if new_id is not None:
+                self.station_floor = new_id
+        elif ((self.data or {}).get("state") == "docked" and new_id is not None and len(self.floors) > 1
+              and new_id != self.dock_floor):
+            # The cloud keeps the last floor's map until the robot cleans again; it's on the dock now.
+            _LOGGER.debug("Ignoring map %s from the cloud: the robot is docked on map %s", new_id, self.dock_floor)
+            return
         if new_id is not None and self.map_id is not None and new_id != self.map_id:
             # The robot is on another floor: keep this one, and start from what we know of that one.
-            await self._async_remember_floor(save=False)
             known = self.floors.get(new_id)
-            self.map = mapdata.MapSnapshot(raw=dict(known["raw"])) if known else mapdata.MapSnapshot()
-            self._map_rooms = list(known["rooms"]) if known else []
-            self._live_pose, self._live_path, self._live_rooms = None, [], ()
+            await self._async_use_floor(new_id)
             _LOGGER.info("The robot moved from map %s to map %s (%s)", self.map_id, new_id,
                          known["name"] if known else "a new floor")
         self.map = self._merge(snapshot)
@@ -643,6 +696,7 @@ class EufyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "rooms": self._map_rooms if self.map.raw else [],
             "updated": self.map_updated.isoformat() if self.map_updated else None,
             "primary": self.primary_map_id,
+            "station": self.station_floor,
             "floors": {
                 str(map_id): {
                     "name": f["name"],

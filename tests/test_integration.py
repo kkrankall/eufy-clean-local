@@ -512,10 +512,36 @@ async def test_floors(hass: HomeAssistant, fake_tuya) -> None:
     await vacuum.async_clean_segments(["9_1"])
     assert len(await wait_for_sent(device, n + 1)) > n  # upstairs rooms clean while the robot is upstairs
 
-    await fetch(downstairs)  # carried back down: the first floor's rooms come back
+    def work_status(**kw) -> str:
+        return c.pb_encode(pb.WorkStatus(**kw))
+
+    async def robot(status: str, state: str) -> None:
+        device.push({"153": status})
+        assert await _wait(lambda: (coordinator.data or {}).get("state") == state)
+        await hass.async_block_till_done()
+
+    # Carried back down and set on the dock by hand: the dock's floor (the first one seen) is shown
+    # again from its saved map, and the cloud's leftover upstairs map is ignored while it's docked.
+    await robot(work_status(), "idle")
+    await robot("BBADGgA=", "docked")
+    # The switch runs as a background task, which async_block_till_done doesn't wait for.
+    assert await _wait(lambda: hass.states.get("sensor.l60_floor").state == "Downstairs")
+    assert coordinator.map_id == 7
+    await fetch(upstairs)
+    assert coordinator.map_id == 7
+
+    await fetch(downstairs)  # once it cleans downstairs, the map agrees
     assert hass.states.get("sensor.l60_floor").state == "Downstairs"
     assert hass.states.get("button.l60_clean_kitchen").state != "unavailable"
     assert hass.states.get("button.l60_clean_kitchen_upstairs").state == "unavailable"
+
+    # A robot that drives itself onto its dock shows which floor the dock is on.
+    await robot("BgoAEAUyAA==", "cleaning")
+    await fetch(upstairs)
+    await robot(work_status(state=pb.WorkStatus.GO_HOME), "returning")
+    await robot("BBADGgA=", "docked")
+    await fetch(upstairs)  # the map refresh after docking
+    assert coordinator.station_floor == 9 and coordinator.map_id == 9
 
     # Floors survive a restart.
     with patch("custom_components.eufy_clean_local.mapdata.fetch_snapshot",
@@ -523,7 +549,7 @@ async def test_floors(hass: HomeAssistant, fake_tuya) -> None:
          patch("custom_components.eufy_clean_local.eufy_cloud.EufyCloud.device_dps", return_value={}):
         assert await hass.config_entries.async_reload(entry.entry_id)
         await hass.async_block_till_done()
-    assert set(entry.runtime_data.floors) == {7, 9}
+    assert set(entry.runtime_data.floors) == {7, 9} and entry.runtime_data.station_floor == 9
     assert hass.states.get("image.l60_upstairs_map").state != "unavailable"
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
