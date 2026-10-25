@@ -275,8 +275,10 @@ async def test_manual_rooms_until_the_map_has_them(hass: HomeAssistant, fake_tuy
     with patch("custom_components.eufy_clean_local.mapdata.fetch_snapshot",
                return_value=mapdata.FetchResult(snapshot=mapdata.MapSnapshot(raw={5: bytes([len(body)]) + body}))):
         await coordinator.async_refresh_map()
-    assert set(coordinator.map.raw) == {5, 7} and coordinator.map_id == 9
+    # Another map is another floor: nothing of the first floor carries over, and both are kept.
+    assert set(coordinator.map.raw) == {5} and coordinator.map_id == 9
     assert coordinator.rooms == [{"id": 1, "name": "Hall"}]
+    assert set(coordinator.floors) == {7, 9} and coordinator.floor_rooms(7)[0]["name"] == "Kitchen"
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
 
@@ -456,6 +458,73 @@ async def test_map_image_follows_live_frames(hass: HomeAssistant, fake_tuya) -> 
         assert hass.states.get("image.l60_map").state != before  # the dashboard's picture URL changes
         assert await image.async_image() == b"\x89PNG new frame"
 
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+
+
+async def test_floors(hass: HomeAssistant, fake_tuya) -> None:
+    """Multi-floor maps: each floor the robot cleans on is kept, with its own rooms, picture and areas."""
+    from homeassistant.components.vacuum import DATA_COMPONENT as VACUUM
+
+    entry = MockConfigEntry(domain=DOMAIN, data=entry_data(cloud=True), unique_id="bf0123456789abcdefxyzw",
+                            title="L60", options={"live_interval": 2, "map_interval": 120})
+    entry.add_to_hass(hass)
+    downstairs, upstairs = synthetic_snapshot(7, "Downstairs"), synthetic_snapshot(9, "Upstairs")
+
+    async def fetch(snapshot) -> None:
+        with patch("custom_components.eufy_clean_local.mapdata.fetch_snapshot",
+                   return_value=mapdata.FetchResult(snapshot=snapshot)):
+            await entry.runtime_data.async_refresh_map()
+        await hass.async_block_till_done()
+
+    with patch("custom_components.eufy_clean_local.mapdata.fetch_snapshot",
+               return_value=mapdata.FetchResult(snapshot=downstairs)), \
+         patch("custom_components.eufy_clean_local.eufy_cloud.EufyCloud.device_dps", return_value={}):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        assert await _wait(lambda: entry.runtime_data.map_id == 7)
+        await hass.async_block_till_done()
+    assert hass.states.get("sensor.l60_floor").state == "Downstairs"
+    assert hass.states.get("image.l60_downstairs_map") is None  # one floor: no per-floor pictures
+
+    await fetch(upstairs)  # the robot was carried upstairs and started cleaning there
+    coordinator = entry.runtime_data
+    assert coordinator.map_id == 9 and set(coordinator.floors) == {7, 9}
+    assert hass.states.get("sensor.l60_floor").state == "Upstairs"
+    down, up = hass.states.get("image.l60_downstairs_map"), hass.states.get("image.l60_upstairs_map")
+    assert down.attributes["active"] is False and up.attributes["active"] is True
+    assert down.attributes["room_shapes"] and up.attributes["room_shapes"]
+    # First-floor rooms keep their entities (unavailable up here); upstairs rooms get their own.
+    assert hass.states.get("button.l60_clean_kitchen").state == "unavailable"
+    assert hass.states.get("button.l60_clean_kitchen_upstairs").state != "unavailable"
+    assert hass.states.get("select.l60_kitchen_suction").state == "unavailable"
+    assert hass.states.get("select.l60_kitchen_upstairs_suction").state == "Turbo"
+
+    vacuum = hass.data[VACUUM].get_entity("vacuum.l60")
+    segments = await vacuum.async_get_segments()
+    assert {(s.id, s.name, s.group) for s in segments} == {
+        ("1", "Kitchen", "Downstairs"), ("2", "Bedroom 1", "Downstairs"),
+        ("9_1", "Kitchen", "Upstairs"), ("9_2", "Bedroom 1", "Upstairs")}
+    with pytest.raises(HomeAssistantError, match="Kitchen is on Downstairs"):
+        await vacuum.async_clean_segments(["1"])
+    device = fake_tuya.instances[-1]
+    n = len(device.sent)
+    await vacuum.async_clean_segments(["9_1"])
+    assert len(await wait_for_sent(device, n + 1)) > n  # upstairs rooms clean while the robot is upstairs
+
+    await fetch(downstairs)  # carried back down: the first floor's rooms come back
+    assert hass.states.get("sensor.l60_floor").state == "Downstairs"
+    assert hass.states.get("button.l60_clean_kitchen").state != "unavailable"
+    assert hass.states.get("button.l60_clean_kitchen_upstairs").state == "unavailable"
+
+    # Floors survive a restart.
+    with patch("custom_components.eufy_clean_local.mapdata.fetch_snapshot",
+               return_value=mapdata.FetchResult(snapshot=None)), \
+         patch("custom_components.eufy_clean_local.eufy_cloud.EufyCloud.device_dps", return_value={}):
+        assert await hass.config_entries.async_reload(entry.entry_id)
+        await hass.async_block_till_done()
+    assert set(entry.runtime_data.floors) == {7, 9}
+    assert hass.states.get("image.l60_upstairs_map").state != "unavailable"
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
 

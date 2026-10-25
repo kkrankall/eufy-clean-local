@@ -113,8 +113,8 @@ def _blob(msg) -> bytes:
     return _varint(len(body)) + body
 
 
-def _room_params_and_pose():
-    params = pb.RoomParams(map_id=7, releases=3)
+def _room_params_and_pose(map_id: int = 7):
+    params = pb.RoomParams(map_id=map_id, releases=3)
     r1 = params.rooms.add(id=1, name="Kitchen")
     r1.order.value = 1
     r1.custom.fan.suction = 2  # Turbo
@@ -133,7 +133,7 @@ def _boundary(x0: int, y0: int, x1: int, y1: int) -> list[tuple[int, int]]:
             + [(x, y1) for x in range(x1, x0, -1)] + [(x0, y) for y in range(y1, y0, -1)])
 
 
-def synthetic_snapshot() -> mapdata.MapSnapshot:
+def synthetic_snapshot(map_id: int = 7, name: str = "") -> mapdata.MapSnapshot:
     """A map in the L60's format: a 50x40 zlib grid inside LZ4, two traced rooms, a dock and the robot.
 
     The grid spans -1.25..1.25 m by -1.0..1.0 m at 5 cm; walls ring the grid with a dividing wall at
@@ -153,7 +153,7 @@ def synthetic_snapshot() -> mapdata.MapSnapshot:
                          2021041401, 0, 2, w, h, -1.25, -1.0, 1.25, 1.0, 0.1, w * h)
     assert len(header) == mapdata.GRID_HEADER
     grid = zlib.compress(header + bytes(cells))
-    m = pb.Map(id=7, releases=3)  # the L60 leaves map_id unset and fills id
+    m = pb.Map(id=map_id, releases=3, name=name)  # the L60 leaves map_id unset and fills id
     m.info.width, m.info.height, m.info.resolution = 40, 30, 5
     m.info.origin.x, m.info.origin.y = -100, -75
     dock = m.info.docks_v2.add()
@@ -166,12 +166,12 @@ def synthetic_snapshot() -> mapdata.MapSnapshot:
     for label, pts in rooms:
         body += struct.pack("<II", label, len(pts)) + b"".join(struct.pack("<III", x, y, 0) for x, y in pts)
     outline_z = zlib.compress(body)
-    o = pb.RoomOutline(map_id=7, releases=3, width=40, height=30, resolution=5)
+    o = pb.RoomOutline(map_id=map_id, releases=3, width=40, height=30, resolution=5)
     o.origin.x, o.origin.y = -100, -75
     o.pixels = lz4.block.compress(outline_z, store_size=False)
     o.pixel_size = len(outline_z)
 
-    params, pose = _room_params_and_pose()
+    params, pose = _room_params_and_pose(map_id)
     snap = mapdata.MapSnapshot()
     snap.raw = {2: _blob(m), 4: _blob(o), 5: _blob(params), 7: _blob(pose)}
     return snap

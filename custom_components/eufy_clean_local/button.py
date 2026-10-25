@@ -37,14 +37,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: EufyConfigEntry,
                                    coordinator.async_refresh_map, needs_robot=False))
     async_add_entities(entities)
 
-    added: set[int] = set()
+    added: set[tuple[int | None, int]] = set()
 
     @callback
     def add_rooms() -> None:
-        new = [r for r in coordinator.rooms if r["id"] not in added]
+        new = []
+        for map_id in sorted(coordinator.floors) or [coordinator.map_id]:
+            key = coordinator.floor_key(map_id)
+            for room in coordinator.floor_rooms(map_id):
+                if (key, room["id"]) not in added:
+                    added.add((key, room["id"]))
+                    new.append(EufyRoomButton(coordinator, room["id"], key))
         if new:
-            added.update(r["id"] for r in new)
-            async_add_entities(EufyRoomButton(coordinator, r["id"]) for r in new)
+            async_add_entities(new)
 
     add_rooms()
     entry.async_on_unload(coordinator.async_add_listener(add_rooms))
@@ -67,27 +72,28 @@ class EufyButton(EufyEntity, ButtonEntity):
 
 
 class EufyRoomButton(EufyEntity, ButtonEntity):
-    """Clean one room. Rooms that disappear from the map become unavailable."""
+    """Clean one room. Rooms that disappear from the map, or are on another floor, become unavailable."""
 
     _attr_icon = "mdi:broom"
 
-    def __init__(self, coordinator, room_id: int) -> None:
-        super().__init__(coordinator, f"clean_room_{room_id}")
+    def __init__(self, coordinator, room_id: int, floor: int | None = None) -> None:
+        super().__init__(coordinator, f"clean_room_{room_id}" if floor is None else f"clean_room_{floor}_{room_id}")
         self._attr_translation_key = "clean_room"
-        self.room_id = room_id
+        self.room_id, self.floor = room_id, floor
 
     @property
     def _room(self) -> dict | None:
-        return next((r for r in self.coordinator.rooms if r["id"] == self.room_id), None)
+        rooms = self.coordinator.floor_rooms(self.coordinator.floor_map_id(self.floor))
+        return next((r for r in rooms if r["id"] == self.room_id), None)
 
     @property
     def translation_placeholders(self) -> dict[str, str]:
         room = self._room
-        return {"room": room["name"] if room else f"room {self.room_id}"}
+        return {"room": self.coordinator.room_label(self.floor, room["name"] if room else f"room {self.room_id}")}
 
     @property
     def available(self) -> bool:
-        return super().available and self._room is not None
+        return super().available and self._room is not None and self.coordinator.on_floor(self.floor)
 
     async def async_press(self) -> None:
         try:

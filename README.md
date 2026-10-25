@@ -24,6 +24,8 @@ Home Assistant's log shows.
 
 ## What you get
 
+- **Multiple floors:** every floor the robot cleans on is remembered, with its
+  own map, rooms and areas (see [Multiple floors](#multiple-floors)).
 - **Dashboard card:** `custom:eufy-clean-card` shows the live map, lets you
   tap rooms to clean just those, and has the controls, suction, passes,
   BoostIQ, the station's Empty dust and the consumables in one card. It comes
@@ -137,6 +139,32 @@ entity: vacuum.l60
 
 The card finds the robot's other entities itself, so `entity` is the only
 option (plus an optional `title`). It works in every browser, Safari included.
+With more than one floor (below), tabs above the map switch between floors.
+
+## Multiple floors
+
+With *multi-floor maps* on in the eufy app, the robot keeps a map for each floor
+and works out which one it's on when you put it down. The integration follows
+it and remembers every floor:
+
+- **Floors are learned as the robot cleans on them.** The robot doesn't list its
+  saved floors, so a floor appears the first time it starts cleaning there, named
+  as in the eufy app, and stays from then on (across restarts too).
+- **Floor sensor:** `sensor.<name>_floor` is the floor the robot is on. It
+  changes once the robot starts cleaning on another floor.
+- **A map per floor:** with two or more floors, each gets its own picture,
+  `image.<name>_<floor>_map`, showing its last map. `image.<name>_map` stays the
+  live map of the floor the robot is on.
+- **Rooms per floor:** each floor's rooms get their own Clean buttons and
+  settings (named with the floor, like *Clean Bedroom (Upstairs)*); the first
+  floor's keep the names and ids they had. They work while the robot is on
+  that floor.
+- **Areas:** the vacuum's rooms for Home Assistant areas are grouped by floor.
+  Cleaning a room on another floor gives an error saying where the robot is.
+
+Switching floors from Home Assistant isn't possible: the robot only takes that
+command with map ids it shares over eufy's encrypted channel. Move the robot,
+and it switches itself.
 
 ## Notifications
 

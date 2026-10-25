@@ -69,6 +69,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: EufyConfigEntry,
         async_add_entities(EufySensor(coordinator, d) for d in SENSORS if d.key in LEGACY_SENSORS)
         return
     async_add_entities(EufySensor(coordinator, desc) for desc in SENSORS if not desc.station_only)
+    if coordinator.cloud is not None:
+        async_add_entities([EufyFloorSensor(coordinator)])
     add_when_station(entry, coordinator, async_add_entities,
                      lambda: [EufySensor(coordinator, d) for d in SENSORS if d.station_only])
 
@@ -85,3 +87,28 @@ class EufySensor(EufyEntity, SensorEntity):
         if self.key == "ip":  # the L60 leaves its own address out of DP 169
             return self.value or self.coordinator.host or None
         return self.value
+
+
+class EufyFloorSensor(EufyEntity, SensorEntity):
+    """The floor the robot is on (multi-floor maps), named as in the eufy app.
+
+    It changes once the robot uploads a map from another floor, which it does when it starts
+    cleaning there; the robot doesn't report its floor otherwise.
+    """
+
+    _attr_icon = "mdi:layers-outline"
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator, "floor")
+
+    @property
+    def available(self) -> bool:
+        return self.coordinator.floor_name is not None
+
+    @property
+    def native_value(self) -> str | None:
+        return self.coordinator.floor_name
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {"floors": self.coordinator.floor_list}

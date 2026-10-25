@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width" />
+<style>
+  :root { --primary-color: #03a9f4; --rgb-primary-color: 3, 169, 244; --primary-text-color: #212121;
+    --rgb-primary-text-color: 33, 33, 33; --secondary-text-color: #727272; --divider-color: rgba(0, 0, 0, 0.12);
+    --secondary-background-color: #e5e5e5; --card-background-color: #fff; --error-color: #db4437;
+    --warning-color: #ffa600; --text-primary-color: #fff; }
+  body.dark { --primary-text-color: #e1e1e1; --rgb-primary-text-color: 225, 225, 225; --secondary-text-color: #9b9b9b;
+    --divider-color: rgba(225, 225, 225, 0.12); --secondary-background-color: #282828; --card-background-color: #1c1c1c;
+    background: #111; }
+  body { margin: 0; padding: 16px; background: #fafafa; font-family: -apple-system, Roboto, sans-serif; }
+  ha-card { display: block; background: var(--card-background-color); border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); color: var(--primary-text-color); }
+  ha-icon { display: inline-block; width: 18px; height: 18px; }
+  #wrap { max-width: 520px; }
+</style>
+</head>
+<body>
+<div id="wrap"></div>
+<script>
+  // Stand-ins for Home Assistant's own elements, and a fake `hass` with one eufy robot.
+  customElements.define("home-assistant", class extends HTMLElement {});
+  customElements.define("ha-card", class extends HTMLElement {});
+  customElements.define("ha-icon", class extends HTMLElement {});
+  window.calls = [];
+  const SHAPES = __SHAPES__;
+  const reg = {};
+  const states = {};
+  function add(id, tk, state, attributes = {}) {
+    reg[id] = { entity_id: id, device_id: "dev1", platform: "eufy_clean_local", translation_key: tk, labels: [] };
+    states[id] = { entity_id: id, state, attributes, last_updated: "t0" };
+  }
+  add("vacuum.l60", "vacuum", "docked", { friendly_name: "L60", status: "Charging", fan_speed: "Standard",
+    fan_speed_list: ["Quiet", "Standard", "Turbo", "Max"], rooms: SHAPES.map((s) => ({ id: s.id, name: s.name })) });
+  add("image.l60_map", "map", "2026-10-21T13:00:00+00:00", { access_token: "abc", room_shapes: SHAPES });
+  add("sensor.l60_battery", "battery", "82", { unit_of_measurement: "%" });
+  add("binary_sensor.l60_problem", "problem", "off", { error: "No error", warning: "No warning" });
+  add("select.l60_cleaning_passes", "clean_times", "1", { options: ["1", "2"] });
+  add("switch.l60_boostiq", "boost_iq", "on");
+  add("button.l60_empty_dust", "empty_dust", "unknown");
+  add("sensor.l60_side_brush_remaining", "side_brush_left", "69", { unit_of_measurement: "%" });
+  add("sensor.l60_rolling_brush_remaining", "rolling_brush_left", "78", { unit_of_measurement: "%" });
+  add("sensor.l60_filter_remaining", "filter_mesh_left", "15", { unit_of_measurement: "%" });
+  add("sensor.l60_cleaning_time", "clean_minutes", "22", { unit_of_measurement: "min" });
+  add("sensor.l60_cleaning_area", "clean_area", "25.8", { unit_of_measurement: "m²" });
+  window.hass = {
+    states, entities: reg,
+    callService: (d, s, data, target) => { window.calls.push({ d, s, data, target }); return Promise.resolve(); },
+    formatEntityState: (st) => st.attributes.unit_of_measurement ? `${st.state} ${st.attributes.unit_of_measurement}` : st.state,
+  };
+  window.push = (changes) => {
+    // changes: {entity_id: [state, attributes, translation_key?]}; new ids are registered on the robot.
+    const nextStates = { ...window.hass.states };
+    const nextReg = { ...window.hass.entities };
+    for (const [id, [state, attributes, tk]] of Object.entries(changes)) {
+      if (tk) nextReg[id] = { entity_id: id, device_id: "dev1", platform: "eufy_clean_local", translation_key: tk, labels: [] };
+      const old = nextStates[id] || { entity_id: id, attributes: {} };
+      nextStates[id] = { ...old, state, attributes: { ...old.attributes, ...attributes }, last_updated: String(Math.random()) };
+    }
+    window.hass = { ...window.hass, states: nextStates, entities: nextReg };
+    document.querySelector("eufy-clean-card").hass = window.hass;
+  };
+</script>
+<script src="/card.js"></script>
+<script>
+  const card = document.createElement("eufy-clean-card");
+  card.setConfig({ entity: "vacuum.l60" });
+  card.hass = window.hass;
+  document.getElementById("wrap").append(card);
+</script>
+</body>
+</html>

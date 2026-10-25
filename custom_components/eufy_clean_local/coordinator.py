@@ -166,6 +166,22 @@ class RobotState:
         return out
 
 
+def _render_floor(raw: dict[int, bytes], rooms: list[dict]) -> tuple[bytes | None, list[dict]]:
+    """A stored floor's picture and room outlines (blocking)."""
+    try:
+        snapshot = mapdata.MapSnapshot(raw=dict(raw))
+        renderer = mapdata.MapRenderer.build(snapshot)
+    except Exception as err:  # noqa: BLE001 - one bad floor shouldn't stop the others
+        _LOGGER.warning("Could not draw a saved floor: %s", err)
+        return None, []
+    if renderer is None:
+        return None, []
+    names = {r["id"]: r["name"] for r in rooms}
+    shapes = [{"id": room_id, "name": names.get(room_id, f"Room {room_id}"), "points": points}
+              for room_id, points in sorted(renderer.shapes.items())]
+    return renderer.frame(snapshot.pose(), snapshot.path()), shapes
+
+
 class LegacyRobotState(RobotState):
     """Older RoboVacs: plain DP values, no protobuf."""
 
@@ -222,6 +238,14 @@ class EufyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._live_rooms: tuple[int, ...] = ()  # rooms of the current room clean, highlighted on the live map
         self._sent_rooms: tuple[int, ...] = ()
         self.alert_signal = f"{DOMAIN}_{self.device_id}_alert"
+        # Every floor the robot has cleaned on (multi-floor maps): map id -> name, map channels,
+        # rooms and when it was last seen. The robot doesn't list its saved floors, so a floor
+        # is learned the first time its map is uploaded, and kept from then on.
+        self.floors: dict[int, dict] = {}
+        self.primary_map_id: int | None = None  # the first floor; its rooms keep their original ids
+        self.floor_pngs: dict[int, bytes] = {}
+        self.floor_shapes: dict[int, list[dict]] = {}
+        self.floor_signal = f"{DOMAIN}_{self.device_id}_floors"
         self._alert_seen: dict | None = None
         self._key_failures = 0
 
@@ -245,6 +269,49 @@ class EufyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 for room_id, points in sorted(self._renderer.shapes.items())]
 
     @property
+    def floor_name(self) -> str | None:
+        """The name of the floor the robot is on (as set in the eufy app)."""
+        floor = self.floors.get(self.map_id)
+        return floor["name"] if floor else None
+
+    @property
+    def floor_list(self) -> list[dict]:
+        return [{"id": map_id, "name": f["name"], "active": map_id == self.map_id}
+                for map_id, f in sorted(self.floors.items())]
+
+    def floor_key(self, map_id: int | None) -> int | None:
+        """How room entities tell floors apart: None for the first floor (whose rooms keep the ids
+        they had before floors existed), else the map id."""
+        return None if map_id is None or map_id == self.primary_map_id else map_id
+
+    def floor_map_id(self, key: int | None) -> int | None:
+        return self.primary_map_id if key is None else key
+
+    def on_floor(self, key: int | None) -> bool:
+        """Whether the robot is on that floor (or floors aren't known yet)."""
+        map_id = self.floor_map_id(key)
+        return map_id is None or self.map_id is None or map_id == self.map_id
+
+    def room_label(self, key: int | None, name: str) -> str:
+        """A room's name, with its floor when it isn't on the first floor."""
+        floor = self.floors.get(key) if key is not None else None
+        return f"{name} ({floor['name']})" if floor else name
+
+    def floor_rooms(self, map_id: int | None) -> list[dict]:
+        """A floor's rooms; the robot's current floor uses the live list."""
+        if map_id is None or map_id == self.map_id:
+            return self.rooms
+        floor = self.floors.get(map_id)
+        return floor["rooms"] if floor else []
+
+    def floor_room_params(self, map_id: int | None):
+        """A floor's RoomParams (per-room settings): the live ones for the current floor."""
+        if map_id is None or map_id == self.map_id:
+            return self.room_params()
+        floor = self.floors.get(map_id)
+        return mapdata.MapSnapshot(raw=floor["raw"]).get(mapdata.CH_ROOM_PARAMS) if floor else None
+
+    @property
     def hybrid(self) -> bool:
         return self.model in c.HYBRID_MODELS
 
@@ -256,6 +323,14 @@ class EufyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     # ------------------------------------------------------------ lifecycle
     async def async_start(self) -> None:
         stored = await self._store.async_load() or {}
+        for key, floor in (stored.get("floors") or {}).items():
+            self.floors[int(key)] = {
+                "name": floor["name"],
+                "raw": {int(k): base64.b64decode(v) for k, v in floor["channels"].items()},
+                "rooms": floor.get("rooms") or [],
+                "updated": dt_util.parse_datetime(floor["updated"]) if floor.get("updated") else None,
+            }
+        self.primary_map_id = stored.get("primary")
         if stored.get("channels"):
             self.map.raw = {int(k): base64.b64decode(v) for k, v in stored["channels"].items()}
             self._map_rooms = stored.get("rooms") or self.map.rooms()
@@ -264,6 +339,11 @@ class EufyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self.map_updated = dt_util.parse_datetime(stored["updated"])
             self.map_png = await self.hass.async_add_executor_job(self._safe_render)
             await self._async_rebuild_live()
+            await self._async_remember_floor(save=False)
+        for map_id in [m for m in self.floors if m not in self.floor_pngs]:
+            floor = self.floors[map_id]
+            self.floor_pngs[map_id], self.floor_shapes[map_id] = await self.hass.async_add_executor_job(
+                _render_floor, floor["raw"], floor["rooms"])
         self._thread = threading.Thread(target=self._worker, name=f"eufy_clean_local_{self.device_id}", daemon=True)
         self._thread.start()
         if self.cloud is not None and not self.legacy:
@@ -501,6 +581,16 @@ class EufyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if snapshot is None:
             _LOGGER.debug("The cloud holds no map data yet")
             return
+        new_id = snapshot.map_id
+        if new_id is not None and self.map_id is not None and new_id != self.map_id:
+            # The robot is on another floor: keep this one, and start from what we know of that one.
+            await self._async_remember_floor(save=False)
+            known = self.floors.get(new_id)
+            self.map = mapdata.MapSnapshot(raw=dict(known["raw"])) if known else mapdata.MapSnapshot()
+            self._map_rooms = list(known["rooms"]) if known else []
+            self._live_pose, self._live_path, self._live_rooms = None, [], ()
+            _LOGGER.info("The robot moved from map %s to map %s (%s)", self.map_id, new_id,
+                         known["name"] if known else "a new floor")
         self.map = self._merge(snapshot)
         rooms = self.map.rooms()
         if rooms:
@@ -511,6 +601,7 @@ class EufyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.map_updated = dt_util.utcnow()
         await self._async_rebuild_live()
         _LOGGER.info("Map updated: map %s, %d rooms", self.map_id, len(self.rooms))
+        await self._async_remember_floor(save=False)
         await self._async_save()
         self.async_update_listeners()
 
@@ -528,11 +619,39 @@ class EufyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     del merged.raw[channel]
         return merged
 
+    async def _async_remember_floor(self, save: bool = True) -> None:
+        """Record the current map as a floor (and tell the floor entities when the floors change)."""
+        map_id = self.map.map_id
+        if map_id is None or not self.map.raw:
+            return
+        m = self.map.get(mapdata.CH_MAP)
+        name = (m.name.strip() if m is not None and m.name else "") or f"Map {map_id}"
+        known = set(self.floors)
+        self.floors[map_id] = {"name": name, "raw": dict(self.map.raw), "rooms": list(self._map_rooms),
+                               "updated": self.map_updated}
+        if self.primary_map_id is None:
+            self.primary_map_id = map_id
+        self.floor_pngs[map_id] = self.map_png
+        self.floor_shapes[map_id] = self.room_shapes
+        if save:
+            await self._async_save()
+        async_dispatcher_send(self.hass, self.floor_signal, set(self.floors) != known)
+
     async def _async_save(self) -> None:
         await self._store.async_save({
             "channels": {str(k): base64.b64encode(v).decode() for k, v in self.map.raw.items()},
             "rooms": self._map_rooms if self.map.raw else [],
             "updated": self.map_updated.isoformat() if self.map_updated else None,
+            "primary": self.primary_map_id,
+            "floors": {
+                str(map_id): {
+                    "name": f["name"],
+                    "channels": {str(k): base64.b64encode(v).decode() for k, v in f["raw"].items()},
+                    "rooms": f["rooms"],
+                    "updated": f["updated"].isoformat() if f["updated"] else None,
+                }
+                for map_id, f in self.floors.items()
+            },
         })
 
     # ------------------------------------------------------------ live view

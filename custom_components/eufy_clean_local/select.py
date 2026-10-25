@@ -31,18 +31,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: EufyConfigEntry,
     )
     add_when_station(entry, coordinator, async_add_entities, lambda: [EufyAutoEmptyEvery(coordinator)])
 
-    added: set[int] = set()
+    added: set[tuple[int | None, int]] = set()
 
     @callback
     def add_rooms() -> None:
-        params = coordinator.room_params()
-        if params is None:
-            return
-        new = [r.id for r in params.rooms if r.id not in added]
+        fields = ["suction", "clean_times"] + (["water_level"] if coordinator.hybrid else [])
+        new = []
+        for map_id in sorted(coordinator.floors) or [coordinator.map_id]:
+            params = coordinator.floor_room_params(map_id)
+            if params is None:
+                continue
+            key = coordinator.floor_key(map_id)
+            for room in params.rooms:
+                if (key, room.id) not in added:
+                    added.add((key, room.id))
+                    new.extend(EufyRoomSelect(coordinator, room.id, f, key) for f in fields)
         if new:
-            added.update(new)
-            fields = ["suction", "clean_times"] + (["water_level"] if coordinator.hybrid else [])
-            async_add_entities(EufyRoomSelect(coordinator, room_id, f) for room_id in new for f in fields)
+            async_add_entities(new)
 
     add_rooms()
     entry.async_on_unload(coordinator.async_add_listener(add_rooms))
@@ -88,24 +93,26 @@ class EufyRoomSelect(EufyEntity, SelectEntity):
 
     _attr_entity_category = EntityCategory.CONFIG
 
-    def __init__(self, coordinator, room_id: int, field: str) -> None:
-        super().__init__(coordinator, f"room_{room_id}_{field}")
+    def __init__(self, coordinator, room_id: int, field: str, floor: int | None = None) -> None:
+        super().__init__(coordinator, f"room_{room_id}_{field}" if floor is None else f"room_{floor}_{room_id}_{field}")
         self._attr_translation_key = f"room_{field}"
-        self.room_id, self.field = room_id, field
+        self.room_id, self.field, self.floor = room_id, field, floor
         self._attr_icon, self._attr_options = ROOM_FIELDS[field]
 
     def _room(self):
-        params = self.coordinator.room_params()
+        params = self.coordinator.floor_room_params(self.coordinator.floor_map_id(self.floor))
         return next((r for r in params.rooms if r.id == self.room_id), None) if params is not None else None
 
     @property
     def translation_placeholders(self) -> dict[str, str]:
-        room = next((r for r in self.coordinator.rooms if r["id"] == self.room_id), None)
-        return {"room": room["name"] if room else f"Room {self.room_id}"}
+        rooms = self.coordinator.floor_rooms(self.coordinator.floor_map_id(self.floor))
+        room = next((r for r in rooms if r["id"] == self.room_id), None)
+        return {"room": self.coordinator.room_label(self.floor, room["name"] if room else f"Room {self.room_id}")}
 
     @property
     def available(self) -> bool:
-        return super().available and self._room() is not None
+        # The robot only takes room settings for the floor it's on.
+        return super().available and self._room() is not None and self.coordinator.on_floor(self.floor)
 
     @property
     def current_option(self) -> str | None:

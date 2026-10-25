@@ -54,7 +54,7 @@ class EufyVacuum(EufyEntity, StateVacuumEntity):
 
     def __init__(self, coordinator) -> None:
         super().__init__(coordinator, "vacuum")
-        self._last_rooms: list[dict] = []
+        self._last_segments: list[tuple] = []
         if coordinator.legacy:  # no map: no rooms, segments or map feature
             self._attr_fan_speed_list = list(legacy.SUCTIONS)
             self._attr_supported_features = self._attr_supported_features & ~(
@@ -77,31 +77,45 @@ class EufyVacuum(EufyEntity, StateVacuumEntity):
             "error": d.get("error"),
             "warning": d.get("warning"),
             "map_id": self.coordinator.map_id,
+            "floor": self.coordinator.floor_name,
             "rooms": self.coordinator.rooms,
         }
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        rooms = self.coordinator.rooms
-        if rooms != self._last_rooms:
-            self._last_rooms = list(rooms)
+        segments = [(s.id, s.name) for s in self._segments()]
+        if segments != self._last_segments:
+            self._last_segments = segments
             self._check_segments()
         super()._handle_coordinator_update()
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
-        self._last_rooms = list(self.coordinator.rooms)
+        self._last_segments = [(s.id, s.name) for s in self._segments()]
         self._check_segments()
+
+    def _segments(self) -> list[Segment]:
+        """Every floor's rooms. First-floor rooms keep their plain ids (and their area mapping);
+        other floors' are "<map id>_<room id>". With two or more floors each is grouped by floor."""
+        co = self.coordinator
+        multi = len(co.floors) > 1
+        out = []
+        for map_id in sorted(co.floors) or [co.map_id]:
+            key = co.floor_key(map_id)
+            group = co.floors[map_id]["name"] if multi and map_id in co.floors else None
+            for room in co.floor_rooms(map_id):
+                out.append(Segment(id=str(room["id"]) if key is None else f"{key}_{room['id']}",
+                                   name=room["name"], group=group))
+        return out
 
     @callback
     def _check_segments(self) -> None:
         """Raise HA's repair prompt when the robot's rooms no longer match the saved area mapping."""
-        if self.registry_entry is None or not self.coordinator.rooms:
+        segments = self._segments()
+        if self.registry_entry is None or not segments:
             return
         seen = self.last_seen_segments
-        if seen is not None and sorted((s.id, s.name) for s in seen) != sorted(
-            (str(r["id"]), r["name"]) for r in self.coordinator.rooms
-        ):
+        if seen is not None and sorted((s.id, s.name) for s in seen) != sorted((s.id, s.name) for s in segments):
             self.async_create_segments_issue()
 
     # ------------------------------------------------------------ actions
@@ -127,10 +141,23 @@ class EufyVacuum(EufyEntity, StateVacuumEntity):
         await self.coordinator.async_command("fan_speed", fan_speed)
 
     async def async_get_segments(self) -> list[Segment]:
-        return [Segment(id=str(r["id"]), name=r["name"]) for r in self.coordinator.rooms]
+        return self._segments()
 
     async def async_clean_segments(self, segment_ids: list[str], **kwargs: Any) -> None:
-        await self._clean_rooms([int(s) for s in segment_ids], int(kwargs.get("clean_times", 1)))
+        co = self.coordinator
+        names = {s.id: (s.name, s.group) for s in self._segments()}
+        room_ids = []
+        for segment in segment_ids:
+            key, _, room = segment.rpartition("_")
+            floor = int(key) if key else None
+            if not co.on_floor(floor):
+                name, group = names.get(segment, (f"room {room}", None))
+                where = group or co.floors.get(co.floor_map_id(floor), {}).get("name", "another floor")
+                raise HomeAssistantError(
+                    f"{name} is on {where}, but the robot is on {co.floor_name or 'another floor'}. "
+                    f"Carry it to {where} first.")
+            room_ids.append(int(room))
+        await self._clean_rooms(room_ids, int(kwargs.get("clean_times", 1)))
 
     async def _clean_rooms(self, room_ids: list[int], times: int = 1) -> None:
         try:

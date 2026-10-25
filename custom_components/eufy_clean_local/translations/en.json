@@ -117,6 +117,9 @@
       },
       "station_status": {
         "name": "Station"
+      },
+      "floor": {
+        "name": "Floor"
       }
     },
     "switch": {
@@ -207,6 +210,9 @@
     "image": {
       "map": {
         "name": "Map"
+      },
+      "floor_map": {
+        "name": "{floor} map"
       }
     },
     "camera": {

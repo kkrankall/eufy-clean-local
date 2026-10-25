@@ -11,7 +11,7 @@
 // service worker).
 
 const DOMAIN = "eufy_clean_local";
-const VERSION = "0.3.1";
+const VERSION = "0.4.0";
 
 const ACTIVE = new Set(["cleaning", "returning"]);
 
@@ -29,6 +29,13 @@ const STYLE = `
   .banner { margin: 0 16px 8px; padding: 8px 12px; border-radius: 8px; display: flex; gap: 8px; align-items: center;
             font-size: 13px; background: rgba(var(--rgb-error-color, 219, 68, 55), 0.12); color: var(--error-color, #db4437); }
   .banner.warning { background: rgba(var(--rgb-warning-color, 255, 166, 0), 0.15); color: var(--warning-color, #ffa600); }
+  .tabs { display: flex; gap: 4px; margin: 0 16px 8px; overflow-x: auto; }
+  .tab { border: none; background: none; color: var(--secondary-text-color); font: inherit; font-size: 13px;
+         padding: 6px 12px; border-radius: 16px; cursor: pointer; white-space: nowrap; }
+  .tab.on { background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.15); color: var(--primary-color); }
+  .tab .here { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-left: 6px;
+               background: var(--primary-color); vertical-align: middle; }
+  .note { font-size: 12px; color: var(--secondary-text-color); margin-bottom: 6px; }
   .map { position: relative; margin: 0 16px; border-radius: 12px; overflow: hidden;
          background: var(--secondary-background-color); min-height: 80px; }
   .map img { display: block; width: 100%; height: auto; }
@@ -83,6 +90,7 @@ class EufyCleanCard extends HTMLElement {
   constructor() {
     super();
     this._selected = new Set();
+    this._floor = null; // the floor tab shown (map id); null follows the robot
     this._signature = "";
     this._imageUrl = "";
     this._message = "";
@@ -118,13 +126,35 @@ class EufyCleanCard extends HTMLElement {
     this._reg = reg;
     const device = reg[this._config.entity]?.device_id;
     const ids = {};
+    this._floorImages = [];
     for (const e of Object.values(reg)) {
       if (device && e.device_id === device && e.platform === DOMAIN && e.translation_key) {
-        ids[`${e.entity_id.split(".")[0]}.${e.translation_key}`] = e.entity_id;
+        if (e.translation_key === "floor_map") this._floorImages.push(e.entity_id);
+        else ids[`${e.entity_id.split(".")[0]}.${e.translation_key}`] = e.entity_id;
       }
     }
     this._ids = ids;
     return ids;
+  }
+
+  // Floors (multi-floor maps): the robot's floor is shown live from the map image; the
+  // others from their own pictures, with no room tapping (the robot can't clean them).
+  _floors() {
+    return this._state("image.map")?.attributes.floors || [];
+  }
+
+  _view() {
+    const main = this._state("image.map");
+    const floors = this._floors();
+    const active = floors.find((f) => f.active);
+    if (this._floor === null || floors.length < 2 || (active && active.id === this._floor)) {
+      return { image: main, live: true, floor: active };
+    }
+    const image = (this._floorImages || [])
+      .map((id) => this._hass.states[id])
+      .find((s) => s && s.attributes.map_id === this._floor);
+    return image ? { image, live: false, floor: floors.find((f) => f.id === this._floor), active }
+      : { image: main, live: true, floor: active };
   }
 
   _state(key) {
@@ -156,12 +186,12 @@ class EufyCleanCard extends HTMLElement {
       this._img = this.shadowRoot.querySelector("#map img");
       this._svg = this.shadowRoot.querySelector("#map svg");
     }
-    const keys = [this._config.entity, ...Object.values(this._entities())];
+    const keys = [this._config.entity, ...Object.values(this._entities()), ...(this._floorImages || [])];
     const signature =
       keys.map((id) => {
         const s = this._hass.states[id];
         return s ? `${id}=${s.state}@${s.last_updated}` : id;
-      }).join("|") + `|${[...this._selected].join(",")}|${this._message}`;
+      }).join("|") + `|${[...this._selected].join(",")}|${this._floor}|${this._message}`;
     if (signature === this._signature) return;
     this._signature = signature;
     this._render();
@@ -178,7 +208,7 @@ class EufyCleanCard extends HTMLElement {
       this.shadowRoot.getElementById("map").style.display = "none";
       return;
     }
-    top.innerHTML = this._renderHead(vac) + this._renderBanner();
+    top.innerHTML = this._renderHead(vac) + this._renderBanner() + this._renderTabs();
     this._renderMap();
     body.innerHTML = [
       this._renderRooms(),
@@ -198,7 +228,8 @@ class EufyCleanCard extends HTMLElement {
       : charging ? `mdi:battery-charging-${Math.max(step, 10)}`
       : step === 100 ? "mdi:battery" : step === 0 ? "mdi:battery-outline" : `mdi:battery-${step}`;
     const name = this._config.title || vac.attributes.friendly_name || this._config.entity;
-    const status = vac.attributes.status || this._format(vac);
+    let status = vac.attributes.status || this._format(vac);
+    if (this._floors().length > 1 && vac.attributes.floor) status += ` · ${vac.attributes.floor}`;
     return `<div class="head" data-action="more-info" data-entity="${esc(this._config.entity)}">
       <div class="text"><div class="name">${esc(name)}</div><div class="status">${esc(status)}</div></div>
       ${Number.isFinite(level) ? `<div class="battery"><ha-icon icon="${icon}"></ha-icon>${Math.round(level)}%</div>` : ""}
@@ -215,9 +246,20 @@ class EufyCleanCard extends HTMLElement {
     return `<div class="banner ${hasError ? "" : "warning"}"><ha-icon icon="mdi:alert-circle-outline"></ha-icon>${esc(text)}</div>`;
   }
 
+  _renderTabs() {
+    const floors = this._floors();
+    if (floors.length < 2) return "";
+    const shown = this._view().floor;
+    return `<div class="tabs">${floors
+      .map((f) => `<button class="tab ${shown && shown.id === f.id ? "on" : ""}" data-action="floor" data-floor="${f.id}"
+        title="${f.active ? "The robot is on this floor" : ""}">${esc(f.name)}${f.active ? '<span class="here"></span>' : ""}</button>`)
+      .join("")}</div>`;
+  }
+
   _renderMap() {
     const map = this.shadowRoot.getElementById("map");
-    const image = this._state("image.map");
+    const view = this._view();
+    const image = view.image;
     if (!image) {
       map.style.display = "none";
       return;
@@ -241,7 +283,7 @@ class EufyCleanCard extends HTMLElement {
       };
       next.src = url;
     }
-    const shapes = image.attributes.room_shapes || [];
+    const shapes = view.live ? image.attributes.room_shapes || [] : [];
     this._svg.innerHTML = shapes
       .map((room) => {
         const points = room.points.map(([x, y]) => `${Math.round(x * 1000)},${Math.round(y * 1000)}`).join(" ");
@@ -252,8 +294,7 @@ class EufyCleanCard extends HTMLElement {
   }
 
   _rooms() {
-    const image = this._state("image.map");
-    const shapes = image?.attributes.room_shapes;
+    const shapes = this._view().image?.attributes.room_shapes;
     if (shapes?.length) return shapes.map((r) => ({ id: r.id, name: r.name }));
     const vac = this._hass.states[this._config.entity];
     return (vac?.attributes.rooms || []).map((r) => ({ id: r.id, name: r.name }));
@@ -262,6 +303,13 @@ class EufyCleanCard extends HTMLElement {
   _renderRooms() {
     const rooms = this._rooms();
     if (!rooms.length) return "";
+    const view = this._view();
+    if (!view.live) {
+      const where = view.active ? view.active.name : "another floor";
+      const chips = rooms.map((r) => `<button class="chip" disabled>${esc(r.name)}</button>`).join("");
+      return `<div class="section"><div class="note">The robot is on ${esc(where)}. Rooms on ${esc(view.floor?.name || "this floor")}
+        can be cleaned once it's there.</div><div class="chips">${chips}</div></div>`;
+    }
     const chips = rooms
       .map((r) => `<button class="chip ${this._selected.has(r.id) ? "on" : ""}" data-action="room" data-room="${r.id}">${esc(r.name)}</button>`)
       .join("");
@@ -366,7 +414,14 @@ class EufyCleanCard extends HTMLElement {
       case "more-info":
         this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId: entity }, bubbles: true, composed: true }));
         return;
+      case "floor":
+        this._floor = Number(el.dataset.floor);
+        this._selected.clear();
+        this._signature = "";
+        this._update();
+        return;
       case "room": {
+        if (!this._view().live) return;
         const id = Number(room);
         if (this._selected.has(id)) this._selected.delete(id);
         else this._selected.add(id);

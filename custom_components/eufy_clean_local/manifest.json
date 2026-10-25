@@ -20,5 +20,5 @@
     "tinytuya>=1.17.0",
     "protobuf>=4.21.0"
   ],
-  "version": "0.3.1"
+  "version": "0.4.0"
 }
