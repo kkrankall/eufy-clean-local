@@ -11,7 +11,7 @@
 // service worker).
 
 const DOMAIN = "eufy_clean_local";
-const VERSION = "0.4.1";
+const VERSION = "0.4.2";
 
 const ACTIVE = new Set(["cleaning", "returning"]);
 

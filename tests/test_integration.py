@@ -155,7 +155,23 @@ async def test_map_rooms_and_segments(hass: HomeAssistant, fake_tuya) -> None:
     assert rooms == [[(2, 1), (1, 2)], [(1, 1)], [(1, 1), (2, 2)]]
     assert all(m.method == pb.ModeCtrlRequest.START_SELECT_ROOMS_CLEAN and m.select_rooms_clean.map_id == 7
                for m in msgs)
-    assert msgs[2].select_rooms_clean.clean_times == 2
+    assert [m.select_rooms_clean.clean_times for m in msgs] == [1, 1, 2]
+
+    # Passes: the robot takes them with each start and keeps no setting, so the select only
+    # remembers the choice (it sends nothing) and every kind of clean uses it.
+    n = len(device.sent)
+    await hass.services.async_call("select", "select_option",
+                                   {"entity_id": "select.l60_cleaning_passes", "option": "2"}, blocking=True)
+    assert hass.states.get("select.l60_cleaning_passes").state == "2"
+    await vacuum.async_clean_segments(["1"])
+    await hass.services.async_call("button", "press", {"entity_id": "button.l60_clean_kitchen"}, blocking=True)
+    await hass.services.async_call("vacuum", "start", {"entity_id": "vacuum.l60"}, blocking=True)
+    await hass.services.async_call("vacuum", "clean_spot", {"entity_id": "vacuum.l60"}, blocking=True)
+    sent = (await wait_for_sent(device, n + 4))[n:]
+    assert all("154" not in s for s in sent)
+    msgs = [c.pb_decode(s["152"], pb.ModeCtrlRequest) for s in sent if "152" in s]
+    assert [m.select_rooms_clean.clean_times for m in msgs[:2]] == [2, 2]
+    assert msgs[2].auto_clean.clean_times == 2 and msgs[3].spot_clean.clean_times == 2
 
     from custom_components.eufy_clean_local.diagnostics import async_get_config_entry_diagnostics
     diag = await async_get_config_entry_diagnostics(hass, entry)
@@ -166,6 +182,18 @@ async def test_map_rooms_and_segments(hass: HomeAssistant, fake_tuya) -> None:
     assert diag["map"]["channels"][2]["decoded"]["id"] == 7
     assert diag["map"]["channels"][2]["decoded"]["pixels"].endswith("bytes>")
     assert bytes.fromhex(diag["map"]["channels"][4]["hex"]) == snapshot.raw[4]
+
+    # The chosen passes come back after a reload (or restart).
+    with patch("custom_components.eufy_clean_local.mapdata.fetch_snapshot", return_value=mapdata.FetchResult(snapshot=snapshot)), \
+         patch("custom_components.eufy_clean_local.eufy_cloud.EufyCloud.device_dps", return_value={}):
+        assert await hass.config_entries.async_reload(entry.entry_id)
+        await hass.async_block_till_done()
+        for _ in range(200):
+            await asyncio.sleep(0.02)
+            if hass.states.get("button.l60_clean_kitchen").state != "unavailable":
+                break
+    assert hass.states.get("select.l60_cleaning_passes").state == "2"
+    assert entry.runtime_data.passes == 2
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()

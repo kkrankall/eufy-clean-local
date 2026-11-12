@@ -157,9 +157,9 @@ class EufyVacuum(EufyEntity, StateVacuumEntity):
                     f"{name} is on {where}, but the robot is on {co.floor_name or 'another floor'}. "
                     f"Carry it to {where} first.")
             room_ids.append(int(room))
-        await self._clean_rooms(room_ids, int(kwargs.get("clean_times", 1)))
+        await self._clean_rooms(room_ids, int(kwargs.get("clean_times") or self.coordinator.passes))
 
-    async def _clean_rooms(self, room_ids: list[int], times: int = 1) -> None:
+    async def _clean_rooms(self, room_ids: list[int], times: int) -> None:
         try:
             await self.coordinator.async_command("rooms", (room_ids, times))
         except ValueError as err:
@@ -175,7 +175,7 @@ class EufyVacuum(EufyEntity, StateVacuumEntity):
         if self.coordinator.legacy:
             await self._legacy_command(command, params)
             return
-        times = int(params.get("clean_times", 1))
+        times = int(params.get("clean_times") or self.coordinator.passes)
         if command == "room_clean":
             names = {r["name"].lower(): r["id"] for r in self.coordinator.rooms}
             ids = []

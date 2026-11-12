@@ -97,6 +97,6 @@ class EufyRoomButton(EufyEntity, ButtonEntity):
 
     async def async_press(self) -> None:
         try:
-            await self.coordinator.async_command("rooms", ([self.room_id], 1))
+            await self.coordinator.async_command("rooms", ([self.room_id], None))
         except ValueError as err:
             raise HomeAssistantError(str(err)) from err

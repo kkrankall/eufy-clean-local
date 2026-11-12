@@ -6,13 +6,13 @@ from homeassistant.components.select import SelectEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 
 from . import EufyConfigEntry
 from . import codec as c
 from .entity import EufyEntity, add_when_station
 
 SELECTS = {
-    "clean_times": ("mdi:repeat", ["1", "2"], lambda v: c.cmd_clean_param(clean_times=int(v)), False),
     "water_level": ("mdi:water", c.WATER_LEVELS,
                     lambda v: c.cmd_clean_param(water_level=c.WATER_LEVELS.index(v)), True),
     "clean_type": ("mdi:broom", c.CLEAN_TYPES,
@@ -25,10 +25,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: EufyConfigEntry,
     coordinator = entry.runtime_data
     if coordinator.legacy:
         return
-    async_add_entities(
+    async_add_entities([EufyPassesSelect(coordinator)] + [
         EufySelect(coordinator, key) for key, (_, _, _, hybrid_only) in SELECTS.items()
         if not hybrid_only or coordinator.hybrid
-    )
+    ])
     add_when_station(entry, coordinator, async_add_entities, lambda: [EufyAutoEmptyEvery(coordinator)])
 
     added: set[tuple[int | None, int]] = set()
@@ -66,6 +66,32 @@ class EufySelect(EufyEntity, SelectEntity):
 
     async def async_select_option(self, option: str) -> None:
         await self.coordinator.async_send(self._build(option))
+
+
+class EufyPassesSelect(EufyEntity, SelectEntity, RestoreEntity):
+    """Passes for the next clean. The L60 takes them with each start command and keeps no
+    setting for them (it ignores clean_param.clean_times), so the choice lives here."""
+
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_icon = "mdi:repeat"
+    _attr_options = ["1", "2"]
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator, "clean_times")
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last = await self.async_get_last_state()
+        if last is not None and last.state in self.options:
+            self.coordinator.passes = int(last.state)
+
+    @property
+    def current_option(self) -> str:
+        return str(self.coordinator.passes)
+
+    async def async_select_option(self, option: str) -> None:
+        self.coordinator.passes = int(option)
+        self.async_write_ha_state()
 
 
 class EufyAutoEmptyEvery(EufySelect):

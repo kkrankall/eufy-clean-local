@@ -136,7 +136,6 @@ class RobotState:
         param = d.get(c.DP_CLEAN_PARAM)
         if param is not None:
             cp = param.clean_param
-            out["clean_times"] = str(cp.clean_times or 1)
             out["water_level"] = c.WATER_LEVELS[cp.mop_mode.level] if cp.mop_mode.level < 3 else None
             out["clean_type"] = c.CLEAN_TYPES[cp.clean_type.value] if cp.clean_type.value < 4 else None
         dnd = d.get(c.DP_DND)
@@ -252,6 +251,9 @@ class EufyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.floor_signal = f"{DOMAIN}_{self.device_id}_floors"
         self._alert_seen: dict | None = None
         self._key_failures = 0
+        # Cleaning passes. The robot takes them with each start command and doesn't keep or
+        # report a setting for them, so the passes select remembers the choice (restored state).
+        self.passes = 1
 
         self._commands: queue.Queue = queue.Queue()
         self._stop = threading.Event()
@@ -399,7 +401,7 @@ class EufyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if dps is None:
                 raise ValueError(f"{self.robot_name} doesn't support {key}")
         elif key == "start":
-            dps = c.cmd_resume() if state == "paused" else c.cmd_start_auto()
+            dps = c.cmd_resume() if state == "paused" else c.cmd_start_auto(self.passes)
         elif key == "pause":
             dps = c.cmd_pause()
         elif key == "stop":
@@ -407,7 +409,7 @@ class EufyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         elif key == "return_to_base":
             dps = c.cmd_go_home()
         elif key == "clean_spot":
-            dps = c.cmd_spot()
+            dps = c.cmd_spot(self.passes)
         elif key == "locate":
             dps = {c.DP_FIND_ROBOT: True}
         elif key == "fan_speed":
@@ -416,6 +418,7 @@ class EufyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if self.map_id is None:
                 raise ValueError("The map has not been loaded yet, so room ids are unknown")
             room_ids, times = value
+            times = times or self.passes
             dps = c.cmd_rooms(room_ids, self.map_id, times)
             self._sent_rooms = tuple(int(r) for r in room_ids)
         else:

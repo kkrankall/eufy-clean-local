@@ -51,7 +51,9 @@ Home Assistant's log shows.
   life (side brush, rolling brush, filter, dust bag on SES), firmware, Wi-Fi.
 - **Settings:** BoostIQ, resume after recharge, child lock, do-not-disturb (on/off,
   start and end), volume, cleaning passes. Mop water level and cleaning type are added
-  on Hybrid models.
+  on Hybrid models. The robot takes passes with each start rather than as a setting, so
+  the passes select is kept by Home Assistant and used for every clean started from it
+  (full, rooms, spot, zones); the eufy app's own choice is separate.
 - **Self-empty station** (added when the robot reports one): station status, dust
   bag life, auto-empty on/off and "every N cleanings", auto hair cutting, and
   Empty dust / Cut hair buttons.
