@@ -5,6 +5,9 @@
     "frontend",
     "http"
   ],
+  "categories": [
+    "appliances_cleaning.cleaning"
+  ],
   "codeowners": [
     "@kkrankall"
   ],
