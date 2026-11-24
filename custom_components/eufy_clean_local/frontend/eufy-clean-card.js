@@ -59,6 +59,7 @@ const STYLE = `
                 padding: 5px 12px; cursor: pointer; }
   .seg button + button { border-left: 1px solid var(--divider-color); }
   .seg button.on { background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.15); color: var(--primary-color); }
+  .seg button:disabled { opacity: 0.5; cursor: default; }
   .row { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: flex-end; }
   .controls { display: flex; gap: 8px; padding: 12px 16px 0; }
   .btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px;
@@ -357,6 +358,16 @@ class EufyCleanCard extends HTMLElement {
     if (passes && passes.attributes.options) {
       parts.push(`<div><div class="label">Passes</div><div class="seg">${passes.attributes.options
         .map((o) => `<button class="${o === passes.state ? "on" : ""}" data-action="option" data-entity="${passes.entity_id}" data-value="${esc(o)}">${esc(o)}</button>`)
+        .join("")}</div></div>`);
+    }
+    const floor = this._state("select.floor");
+    if (floor && floor.state !== "unavailable" && (floor.attributes.options || []).length > 1) {
+      // Loading another floor's map only works while the robot is on its dock or idle.
+      const ok = vac.state === "docked" || vac.state === "idle";
+      const why = ok ? "Load this floor's map on the robot" : "Only while docked or idle";
+      parts.push(`<div><div class="label">Floor</div><div class="seg">${floor.attributes.options
+        .map((o) => `<button class="${o === floor.state ? "on" : ""}" ${ok ? "" : "disabled"} title="${why}"
+          data-action="option" data-entity="${floor.entity_id}" data-value="${esc(o)}">${esc(o)}</button>`)
         .join("")}</div></div>`);
     }
     const chips = [];

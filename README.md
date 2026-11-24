@@ -166,9 +166,12 @@ it and remembers every floor:
 - **Areas:** the vacuum's rooms for Home Assistant areas are grouped by floor.
   Cleaning a room on another floor gives an error saying where the robot is.
 
-Switching floors from Home Assistant isn't possible: the robot only takes that
-command with map ids it shares over eufy's encrypted channel. Move the robot,
-and it switches itself.
+- **Switching floors:** `select.<name>_floor` loads a floor's saved map on the
+  robot (the app's *load map*, `MAP_LOAD`). Use it when the robot was put down
+  on another floor without the app, or has lost track of which floor it's on and
+  fails to position itself ("Unable to identify position"). It works while the
+  robot is docked or idle; on the dock, the dock's floor becomes that floor too.
+  From an automation, use the `load_map` command (below).
 
 ## Notifications
 
@@ -205,6 +208,7 @@ disable it there.
 | Command | Params |
 |---|---|
 | `room_clean` | `rooms`: list of room names or ids; optional `clean_times` (1 or 2) |
+| `load_map` | `map`: a floor's name or map id; loads that floor's saved map (see [Multiple floors](#multiple-floors)) |
 | `zone_clean` | `zones`: list of rectangles, each 4 `[x, y]` corners in map units (cm) |
 | `auto_clean` | optional `clean_times` |
 | `quick_mapping` | — |

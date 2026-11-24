@@ -1,10 +1,11 @@
-"""Cleaning passes, and mop settings on the Hybrid models."""
+"""Cleaning passes, the floor (saved map) the robot uses, and mop settings on the Hybrid models."""
 
 from __future__ import annotations
 
 from homeassistant.components.select import SelectEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
@@ -30,6 +31,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: EufyConfigEntry,
         if not hybrid_only or coordinator.hybrid
     ])
     add_when_station(entry, coordinator, async_add_entities, lambda: [EufyAutoEmptyEvery(coordinator)])
+    if coordinator.cloud is not None:  # floors come from the cloud's maps
+        async_add_entities([EufyFloorSelect(coordinator)])
 
     added: set[tuple[int | None, int]] = set()
 
@@ -105,6 +108,35 @@ class EufyAutoEmptyEvery(EufySelect):
     async def async_select_option(self, option: str) -> None:
         on = bool((self.coordinator.data or {}).get("auto_empty", True))
         await self.coordinator.async_send(c.cmd_auto_empty(on, int(option)))
+
+
+class EufyFloorSelect(EufyEntity, SelectEntity):
+    """The floor (saved map) the robot is on. Choosing one loads that map on the robot, for when
+    it was put down on another floor or lost track of where it is and can't position itself."""
+
+    _attr_icon = "mdi:layers-outline"
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator, "floor")
+
+    @property
+    def available(self) -> bool:
+        return super().available and len(self.coordinator.floors) > 1
+
+    @property
+    def options(self) -> list[str]:
+        return [f["name"] for _, f in sorted(self.coordinator.floors.items())]
+
+    @property
+    def current_option(self) -> str | None:
+        return self.coordinator.floor_name
+
+    async def async_select_option(self, option: str) -> None:
+        map_id = next(i for i, f in sorted(self.coordinator.floors.items()) if f["name"] == option)
+        try:
+            await self.coordinator.async_load_floor(map_id)
+        except ValueError as err:
+            raise HomeAssistantError(str(err)) from err
 
 
 ROOM_FIELDS = {

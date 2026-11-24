@@ -514,6 +514,7 @@ async def test_floors(hass: HomeAssistant, fake_tuya) -> None:
         await hass.async_block_till_done()
     assert hass.states.get("sensor.l60_floor").state == "Downstairs"
     assert hass.states.get("image.l60_downstairs_map") is None  # one floor: no per-floor pictures
+    assert hass.states.get("select.l60_floor").state == "unavailable"  # nothing to switch to yet
 
     await fetch(upstairs)  # the robot was carried upstairs and started cleaning there
     coordinator = entry.runtime_data
@@ -570,6 +571,39 @@ async def test_floors(hass: HomeAssistant, fake_tuya) -> None:
     await robot("BBADGgA=", "docked")
     await fetch(upstairs)  # the map refresh after docking
     assert coordinator.station_floor == 9 and coordinator.map_id == 9
+
+    # Loading a floor's map on the robot (MAP_LOAD on DP 172), e.g. when it lost track of its floor.
+    # On the dock, the dock's floor follows.
+    floor = hass.states.get("select.l60_floor")
+    assert floor.state == "Upstairs" and floor.attributes["options"] == ["Downstairs", "Upstairs"]
+    n = len(device.sent)
+    await hass.services.async_call("select", "select_option",
+                                   {"entity_id": "select.l60_floor", "option": "Downstairs"}, blocking=True)
+    sent = await wait_for_sent(device, n + 1)
+    load = c.pb_decode(sent[n][c.DP_MULTI_MAP], pb.MultiMapsManageRequest)
+    assert load.method == pb.MultiMapsManageRequest.MAP_LOAD and load.common.cloud_mapid == 7
+    assert coordinator.map_id == 7 and coordinator.station_floor == 7
+    assert hass.states.get("sensor.l60_floor").state == "Downstairs"
+    assert hass.states.get("button.l60_clean_kitchen").state != "unavailable"
+
+    # The same from an automation, by name (or map id).
+    await hass.services.async_call("vacuum", "send_command", {"entity_id": "vacuum.l60", "command": "load_map",
+                                                             "params": {"map": "upstairs"}}, blocking=True)
+    sent = await wait_for_sent(device, n + 2)
+    assert c.pb_decode(sent[n + 1][c.DP_MULTI_MAP], pb.MultiMapsManageRequest).common.cloud_mapid == 9
+    assert coordinator.map_id == 9 and coordinator.station_floor == 9
+    with pytest.raises(HomeAssistantError, match="Unknown floor 'Attic'"):
+        await hass.services.async_call("vacuum", "send_command", {"entity_id": "vacuum.l60", "command": "load_map",
+                                                                 "params": {"map": "Attic"}}, blocking=True)
+
+    # Not while it's cleaning.
+    await robot("BgoAEAUyAA==", "cleaning")
+    with pytest.raises(HomeAssistantError, match="only switch floors while docked or idle"):
+        await hass.services.async_call("select", "select_option",
+                                       {"entity_id": "select.l60_floor", "option": "Downstairs"}, blocking=True)
+    assert len(device.sent) == n + 2
+    await robot("BBADGgA=", "docked")
+    assert coordinator.map_id == 9
 
     # Floors survive a restart.
     with patch("custom_components.eufy_clean_local.mapdata.fetch_snapshot",

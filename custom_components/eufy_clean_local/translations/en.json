@@ -149,6 +149,9 @@
       "clean_times": {
         "name": "Cleaning passes"
       },
+      "floor": {
+        "name": "Floor"
+      },
       "water_level": {
         "name": "Mop water level"
       },

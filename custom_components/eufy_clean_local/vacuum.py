@@ -167,7 +167,8 @@ class EufyVacuum(EufyEntity, StateVacuumEntity):
 
     async def async_send_command(self, command: str, params: dict[str, Any] | list[Any] | None = None,
                                  **kwargs: Any) -> None:
-        """Extra commands: room_clean (rooms by id or name), zone_clean, quick_mapping, remote, raw.
+        """Extra commands: room_clean (rooms by id or name), zone_clean, load_map (a floor by name or
+        map id), quick_mapping, remote, raw.
 
         Older robots (30C): auto_clean, edge_clean, small_room_clean, spot_clean, remote, raw.
         """
@@ -176,7 +177,18 @@ class EufyVacuum(EufyEntity, StateVacuumEntity):
             await self._legacy_command(command, params)
             return
         times = int(params.get("clean_times") or self.coordinator.passes)
-        if command == "room_clean":
+        if command == "load_map":
+            floor = params.get("map")
+            names = {f["name"].lower(): i for i, f in sorted(self.coordinator.floors.items())}
+            map_id = int(floor) if isinstance(floor, int) or str(floor).isdigit() else names.get(str(floor).lower())
+            if map_id is None:
+                raise HomeAssistantError(f"Unknown floor {floor!r}; known floors: "
+                                         f"{', '.join(f['name'] for f in self.coordinator.floors.values()) or 'none yet'}")
+            try:
+                await self.coordinator.async_load_floor(map_id)
+            except ValueError as err:
+                raise HomeAssistantError(str(err)) from err
+        elif command == "room_clean":
             names = {r["name"].lower(): r["id"] for r in self.coordinator.rooms}
             ids = []
             for room in params.get("rooms", []):

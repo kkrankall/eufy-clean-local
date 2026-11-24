@@ -131,6 +131,16 @@ def cmd_quick_mapping() -> dict:
     return mode(Method.START_FAST_MAPPING)
 
 
+def cmd_load_map(map_id: int) -> dict:
+    """Make a saved floor's map the robot's current one (MultiMapsManageRequest MAP_LOAD on DP 172).
+
+    The robot acks on DP 172 (result SUCCESS, also for ids it doesn't have) and DP 171.
+    """
+    req = pb.MultiMapsManageRequest
+    return {DP_MULTI_MAP: pb_encode(req(method=req.MAP_LOAD, seq=int(time.time()) & 0xFFFF,
+                                        common=req.Common(cloud_mapid=int(map_id))))}
+
+
 def cmd_rooms(room_ids: list[int], map_id: int, clean_times: int = 1) -> dict:
     rooms = pb.SelectRoomsClean(clean_times=clean_times, map_id=map_id)
     for order, room_id in enumerate(room_ids, start=1):

@@ -577,12 +577,36 @@ class EufyCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if target is None or target == self.map_id or target not in self.floors:
             return
         _LOGGER.info("Docked: showing %s", self.floors[target]["name"])
-        await self._async_use_floor(target)
-        self.map_id = target
-        self.map_updated = self.floors[target]["updated"]
-        self.map_png = await self.hass.async_add_executor_job(self._safe_render)
-        await self._async_rebuild_live()
-        await self._async_remember_floor(save=False)
+        await self._async_show_floor(target)
+
+    async def async_load_floor(self, map_id: int) -> None:
+        """Load a saved floor's map on the robot (MAP_LOAD), for when it was put down on another
+        floor or has lost track of which floor it's on (it then fails to position itself).
+
+        Only while it isn't cleaning. On the dock, the dock's floor becomes that floor too.
+        """
+        if map_id not in self.floors:
+            known = ", ".join(f"{f['name']} ({i})" for i, f in sorted(self.floors.items()))
+            raise ValueError(f"Unknown floor {map_id}; known floors: {known or 'none yet'}")
+        state = (self.data or {}).get("state")
+        if state not in ("docked", "idle"):
+            raise ValueError(f"The robot can only switch floors while docked or idle, not {state}")
+        _LOGGER.info("Loading %s (map %s) on the robot", self.floors[map_id]["name"], map_id)
+        await self.async_send(c.cmd_load_map(map_id))
+        if state == "docked":
+            self.station_floor = map_id
+            self._docked_after_clean = False
+        await self._async_show_floor(map_id)
+
+    async def _async_show_floor(self, target: int) -> None:
+        """Show a saved floor (its map, rooms and live view) as the robot's current one."""
+        if target != self.map_id:
+            await self._async_use_floor(target)
+            self.map_id = target
+            self.map_updated = self.floors[target]["updated"]
+            self.map_png = await self.hass.async_add_executor_job(self._safe_render)
+            await self._async_rebuild_live()
+            await self._async_remember_floor(save=False)
         await self._async_save()
         self.async_update_listeners()
 
